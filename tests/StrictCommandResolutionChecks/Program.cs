@@ -30,6 +30,7 @@ internal static class Program
         Check(new MasterConfig().CommandSuggestionDistance == 2);
         Check(string.Join("/", StrictCommandResolver.Tokenize("AUDIO  master")) == "AUDIO//master");
         Check(StrictCommandResolver.Tokenize("AUDIO\tmaster")[0] == "AUDIO\tmaster");
+        Check(StrictCommandResolver.Tokenize("clear ").Length == 2);
         Check(StrictCommandResolver.FindExactSubcommand(commands[2], "MASTER") == "master");
         Check(StrictCommandResolver.FindExactSubcommand(commands[2], "mas") == null);
         Check(string.Join(",", StrictCommandResolver.GetSubcommandSuggestions(commands[2], "mastr", 1)) == "audio master");

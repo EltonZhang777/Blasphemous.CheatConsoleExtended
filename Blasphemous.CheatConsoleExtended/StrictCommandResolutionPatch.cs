@@ -49,7 +49,10 @@ internal static class StrictCommandRuntime
                 return;
             }
 
-            console.ProcessInternalCommand(command.Name);
+            if (tokens.Length == 1)
+                console.ProcessInternalCommand(command.Name);
+            else
+                console.Write("Command not found. Use Help for more information.");
             return;
         }
 
