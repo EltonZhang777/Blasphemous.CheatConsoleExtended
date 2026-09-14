@@ -11,6 +11,7 @@ public class CheatConsoleExtended : BlasMod
     protected override void OnInitialize()
     {
         Config = ConfigHandler.Load<MasterConfig>();
+        Config.CommandSuggestionDistance = StrictCommandResolver.NormalizeDistance(Config.CommandSuggestionDistance);
     }
 
     protected override void OnAllInitialized()
