@@ -29,10 +29,10 @@ internal static class StrictCommandResolver
 {
     public static string[] Tokenize(string rawText)
     {
-        string text = (rawText ?? string.Empty).Replace("\r", string.Empty).Trim();
-        return text.Length == 0
+        string text = (rawText ?? string.Empty).Replace("\r", string.Empty);
+        return text.Trim().Length == 0
             ? new string[0]
-            : text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            : text.Split(new[] { ' ' });
     }
 
     public static CommandDefinition FindExact(string token, IList<CommandDefinition> commands)
