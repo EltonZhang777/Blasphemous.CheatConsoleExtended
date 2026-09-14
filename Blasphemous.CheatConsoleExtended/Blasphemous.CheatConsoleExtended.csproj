@@ -20,8 +20,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Blasphemous.CheatConsole" Version="1.1.0" />
     <PackageReference Include="Blasphemous.GameLibs" Version="4.0.67" />
     <PackageReference Include="Blasphemous.ModdingAPI" Version="3.0.1" />
+    <PackageReference Include="Blasphemous.NewbieEltonLibs" Version="0.3.0" />
   </ItemGroup>
 
   <Target Name="Development" AfterTargets="PostBuildEvent">
