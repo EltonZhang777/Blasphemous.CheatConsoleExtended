@@ -30,6 +30,16 @@ internal static class Program
         Check(StrictCommandResolver.FindExactSubcommand(commands[2], "mas") == null);
         Check(string.Join(",", StrictCommandResolver.GetSubcommandSuggestions(commands[2], "mastr", 1)) == "audio master");
         Check(string.Join(",", StrictCommandResolver.GetHierarchicalSuggestions("audo", "mastr", commands, 2)) == "audio,audio master");
+
+        var sharedCommands = new List<CommandDefinition> { new CommandDefinition("grant_relic") };
+        Check(StrictCommandResolver.FindExact("GRANT_RELIC", sharedCommands).Name == "grant_relic");
+        Check(StrictCommandResolver.FindExact("grant", sharedCommands) == null);
+        var commandWithSharedIds = new CommandDefinition("command", new[] { "help", "list", "refresh", "grant_relic" });
+        Check(StrictCommandResolver.FindExactSubcommand(commandWithSharedIds, "GRANT_RELIC") == "grant_relic");
+        Check(StrictCommandResolver.FindExactSubcommand(commandWithSharedIds, "grant") == null);
+        sharedCommands[0] = new CommandDefinition("new_shared_id");
+        Check(StrictCommandResolver.FindExact("NEW_SHARED_ID", sharedCommands).Name == "new_shared_id");
+        Check(StrictCommandResolver.FindExact("grant_relic", sharedCommands) == null);
     }
 
     private static void Check(bool condition)
