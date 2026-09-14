@@ -17,13 +17,18 @@
     <DocumentationFile>bin\$(Configuration)\$(TargetName).xml</DocumentationFile>
     <RepositoryUrl>https://github.com/EltonZhang777/Blasphemous.CheatConsoleExtended</RepositoryUrl>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Single source of truth for the prerequisite dependency version.
+         Used both by PackageReference (compile) and the packaging target (data/ dll copy),
+         so the shipped dll always matches the compiled dependency. -->
+    <NewbieEltonLibsVersion>0.3.0</NewbieEltonLibsVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Blasphemous.CheatConsole" Version="1.1.0" />
     <PackageReference Include="Blasphemous.GameLibs" Version="4.0.67" />
     <PackageReference Include="Blasphemous.ModdingAPI" Version="3.0.1" />
-    <PackageReference Include="Blasphemous.NewbieEltonLibs" Version="0.3.0" />
+    <PackageReference Include="Blasphemous.NewbieEltonLibs" Version="$(NewbieEltonLibsVersion)" />
   </ItemGroup>
 
   <Target Name="Development" AfterTargets="PostBuildEvent">
@@ -31,23 +36,27 @@
     <!-- Get plugin & resources -->
     <ItemGroup>
       <PluginDll Include="$(TargetPath)" />
+      <!-- Copy the same NuGet package version used by PackageReference. -->
+      <DataDlls Include="$(NuGetPackageRoot)blasphemous.newbieeltonlibs\$(NewbieEltonLibsVersion)\lib\net35\Blasphemous.NewbieEltonLibs.dll" />
       <Resources Include="$(SolutionDir)\resources\**\*.*" />
     </ItemGroup>
 
     <!-- Get export directories -->
     <PropertyGroup>
-      <DevFolder>C:\Program Files (x86)\Steam\steamapps\common\Blasphemous\Modding\</DevFolder>
+      <DevFolder Condition="'$(DevFolder)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Blasphemous\Modding\</DevFolder>
       <PublishFolder>$(SolutionDir)\publish\$(TargetName)</PublishFolder>
     </PropertyGroup>
 
     <!-- Export to dev folder -->
     <Copy SourceFiles="@(Resources)" DestinationFolder="$(DevFolder)\%(RecursiveDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(PluginDll)" DestinationFolder="$(DevFolder)\plugins" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(DataDlls)" DestinationFolder="$(DevFolder)\data" SkipUnchangedFiles="true" />
 
     <!-- Export to publish folder -->
     <RemoveDir Directories="$(PublishFolder)" />
     <Copy SourceFiles="@(Resources)" DestinationFolder="$(PublishFolder)\%(RecursiveDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(PluginDll)" DestinationFolder="$(PublishFolder)\plugins" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(DataDlls)" DestinationFolder="$(PublishFolder)\data" SkipUnchangedFiles="true" />
     <ZipDirectory SourceDirectory="$(PublishFolder)" DestinationFile="$(PublishFolder)\..\$(TargetName).zip" Overwrite="true" />
 
   </Target>
