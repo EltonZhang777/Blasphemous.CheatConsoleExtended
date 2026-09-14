@@ -11,3 +11,5 @@ Use the default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-
 ### Domain docs
 
 This is a single-context repo; read `CONTEXT.md` and relevant ADRs under `docs/adr/`. See `docs/agents/domain.md`.
+
+For console work—vanilla console behavior, CheatConsole registration or patches, command parsing, input/focus, UI output, or optimization—also read `docs/agents/console-architecture.md`.
