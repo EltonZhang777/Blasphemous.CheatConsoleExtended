@@ -30,7 +30,7 @@ internal static class StrictCommandRuntime
             {
                 bool invalidSubcommand = tokens.Length > 1
                     && command.Subcommands.Count > 0
-                    && !ContainsIgnoreCase(command.Subcommands, tokens[1]);
+                    && StrictCommandResolver.FindExactSubcommand(command, tokens[1]) == null;
 
                 Execute(consoleCommand, command.Name, Slice(tokens, 1));
                 if (invalidSubcommand)

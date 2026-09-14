@@ -57,6 +57,20 @@ internal static class StrictCommandResolver
         return suggestions;
     }
 
+    public static string FindExactSubcommand(CommandDefinition command, string token)
+    {
+        if (command == null || string.IsNullOrEmpty(token))
+            return null;
+
+        foreach (string subcommand in command.Subcommands)
+        {
+            if (string.Equals(subcommand, token, StringComparison.OrdinalIgnoreCase))
+                return subcommand;
+        }
+
+        return null;
+    }
+
     public static List<string> GetSubcommandSuggestions(CommandDefinition command, string input, int maxDistance)
     {
         List<string> suggestions = new List<string>();

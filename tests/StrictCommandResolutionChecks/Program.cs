@@ -26,6 +26,8 @@ internal static class Program
         Check(StrictCommandResolver.NormalizeDistance(-1) == 0);
         Check(new MasterConfig().CommandSuggestionDistance == 2);
         Check(string.Join("/", StrictCommandResolver.Tokenize("  AUDIO\t master  ")) == "AUDIO/master");
+        Check(StrictCommandResolver.FindExactSubcommand(commands[2], "MASTER") == "master");
+        Check(StrictCommandResolver.FindExactSubcommand(commands[2], "mas") == null);
         Check(string.Join(",", StrictCommandResolver.GetSubcommandSuggestions(commands[2], "mastr", 1)) == "audio master");
         Check(string.Join(",", StrictCommandResolver.GetHierarchicalSuggestions("audo", "mastr", commands, 2)) == "audio,audio master");
     }
