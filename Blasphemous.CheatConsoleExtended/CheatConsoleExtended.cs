@@ -16,8 +16,18 @@ public class CheatConsoleExtended : BlasMod
         ConsoleFont = new ConsoleFontManager(Config);
     }
 
-    protected override void OnAllInitialized()
+    protected override void OnRegisterServices(ModServiceProvider provider)
+    {
+        Blasphemous.CheatConsole.CommandRegister.RegisterCommand(provider, new ConsoleFontCommand());
+    }
+
+    internal void SaveConfig()
     {
         ConfigHandler.Save(Config);
+    }
+
+    protected override void OnAllInitialized()
+    {
+        SaveConfig();
     }
 }
