@@ -34,6 +34,7 @@ internal static class ConsoleFontApplicator
         if (console != null)
         {
             ApplyTo(console);
+            RefreshLayout(console);
         }
     }
 
@@ -89,6 +90,21 @@ internal static class ConsoleFontApplicator
         if (text != null)
         {
             text.font = font;
+        }
+    }
+
+    private static void RefreshLayout(ConsoleWidget console)
+    {
+        if (console.content == null)
+        {
+            return;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
+        if (console.scrollRect != null)
+        {
+            console.scrollRect.verticalNormalizedPosition = 0f;
         }
     }
 

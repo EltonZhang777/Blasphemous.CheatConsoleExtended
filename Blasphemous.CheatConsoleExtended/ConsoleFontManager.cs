@@ -7,7 +7,7 @@ namespace Blasphemous.CheatConsoleExtended;
 internal sealed class ConsoleFontManager
 {
     private const string FallbackFontName = "Arial";
-    private const int DynamicFontSize = 16;
+    private const int DynamicFontSize = 22;
 
     private readonly MasterConfig _config;
 
