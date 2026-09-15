@@ -73,7 +73,7 @@ internal static class ConsoleFontApplicator
             var text = console.content.GetChild(i).GetComponent<Text>();
             if (text != null)
             {
-                text.font = font;
+                ApplyOutputFont(text, font);
             }
         }
     }
@@ -89,8 +89,25 @@ internal static class ConsoleFontApplicator
         var text = console.content.GetChild(console.content.childCount - 1).GetComponent<Text>();
         if (text != null)
         {
-            text.font = font;
+            ApplyOutputFont(text, font);
         }
+    }
+
+    private static void ApplyOutputFont(Text text, Font font)
+    {
+        var nativeHeight = text.preferredHeight;
+        var layoutElement = text.GetComponent<LayoutElement>();
+        if (layoutElement == null)
+        {
+            layoutElement = text.gameObject.AddComponent<LayoutElement>();
+        }
+
+        if (layoutElement.preferredHeight < 0f && nativeHeight > 0f)
+        {
+            layoutElement.preferredHeight = nativeHeight;
+        }
+
+        text.font = font;
     }
 
     private static void RefreshLayout(ConsoleWidget console)

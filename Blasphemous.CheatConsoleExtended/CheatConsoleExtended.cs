@@ -1,5 +1,7 @@
 ﻿using Blasphemous.ModdingAPI;
 
+using Blasphemous.NewbieEltonLibs.CheatConsole;
+
 namespace Blasphemous.CheatConsoleExtended;
 
 public class CheatConsoleExtended : BlasMod
@@ -14,6 +16,11 @@ public class CheatConsoleExtended : BlasMod
     {
         Config = ConfigHandler.Load<MasterConfig>() ?? new MasterConfig();
         ConsoleFont = new ConsoleFontManager(Config);
+
+        #if DEBUG
+        CheatConsoleLogging.LogCheatConsoleInput(true, LogLevel.Info, true);
+        CheatConsoleLogging.LogCheatConsoleOutput(true, LogLevel.Info, true);
+        #endif
     }
 
     protected override void OnRegisterServices(ModServiceProvider provider)
