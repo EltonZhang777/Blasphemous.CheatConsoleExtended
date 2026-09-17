@@ -13,6 +13,7 @@ internal static class ConsoleWidget_OnPlayerSpawn_ApplyFont_Patch
     private static void Postfix(ConsoleWidget __instance)
     {
         ConsoleFontApplicator.ApplyTo(__instance);
+        ConsoleFontApplicator.RefreshLayout(__instance);
     }
 }
 
@@ -73,7 +74,17 @@ internal static class ConsoleFontApplicator
             var text = console.content.GetChild(i).GetComponent<Text>();
             if (text != null)
             {
-                ApplyOutputFont(text, font);
+                text.font = font;
+            }
+        }
+
+        Canvas.ForceUpdateCanvases();
+        for (var i = 0; i < console.content.childCount; i++)
+        {
+            var text = console.content.GetChild(i).GetComponent<Text>();
+            if (text != null)
+            {
+                ApplyOutputLayout(text, font);
             }
         }
     }
@@ -89,28 +100,37 @@ internal static class ConsoleFontApplicator
         var text = console.content.GetChild(console.content.childCount - 1).GetComponent<Text>();
         if (text != null)
         {
-            ApplyOutputFont(text, font);
+            text.font = font;
+            Canvas.ForceUpdateCanvases();
+            ApplyOutputLayout(text, font);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
         }
     }
 
-    private static void ApplyOutputFont(Text text, Font font)
+    private static void ApplyOutputLayout(Text text, Font font)
     {
-        var nativeHeight = text.preferredHeight;
         var layoutElement = text.GetComponent<LayoutElement>();
         if (layoutElement == null)
         {
             layoutElement = text.gameObject.AddComponent<LayoutElement>();
         }
 
-        if (layoutElement.preferredHeight < 0f && nativeHeight > 0f)
+        var preferredHeight = text.preferredHeight;
+        var lineCount = Mathf.Max(1, text.cachedTextGeneratorForLayout.lineCount);
+        var lineHeight = font.lineHeight / Mathf.Max(1f, text.pixelsPerUnit);
+        var rowHeight = lineHeight > 0f ? lineCount * lineHeight : preferredHeight;
+        if (preferredHeight > rowHeight)
         {
-            layoutElement.preferredHeight = nativeHeight;
+            rowHeight = preferredHeight;
         }
 
-        text.font = font;
+        if (rowHeight > 0f)
+        {
+            layoutElement.preferredHeight = rowHeight;
+        }
     }
 
-    private static void RefreshLayout(ConsoleWidget console)
+    internal static void RefreshLayout(ConsoleWidget console)
     {
         if (console.content == null)
         {
