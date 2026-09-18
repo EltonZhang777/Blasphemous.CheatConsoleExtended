@@ -139,10 +139,6 @@ internal static class ConsoleFontApplicator
 
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
-        if (console.scrollRect != null)
-        {
-            console.scrollRect.verticalNormalizedPosition = 0f;
-        }
     }
 
     private static Font GetCurrentFont()
