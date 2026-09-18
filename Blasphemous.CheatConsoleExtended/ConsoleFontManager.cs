@@ -1,5 +1,5 @@
-using System;
 using Blasphemous.ModdingAPI;
+using System;
 using UnityEngine;
 
 namespace Blasphemous.CheatConsoleExtended;
@@ -25,11 +25,11 @@ internal sealed class ConsoleFontManager
     {
         try
         {
-            return Font.GetOSInstalledFontNames() ?? new string[0];
+            return Font.GetOSInstalledFontNames() ?? [];
         }
         catch (Exception)
         {
-            return new string[0];
+            return [];
         }
     }
 
@@ -58,13 +58,7 @@ internal sealed class ConsoleFontManager
     {
         var installedFontNames = GetInstalledFontNames();
         var configuredFontName = _config.ConsoleFont;
-        var font = TryCreateFont(configuredFontName, installedFontNames, out var resolvedFontName);
-
-        if (font == null)
-        {
-            font = TryCreateFont(MasterConfig.DefaultConsoleFont, installedFontNames, out resolvedFontName);
-        }
-
+        var font = TryCreateFont(configuredFontName, installedFontNames, out var resolvedFontName) ?? TryCreateFont(MasterConfig.DefaultConsoleFont, installedFontNames, out resolvedFontName);
         if (font == null)
         {
             font = TryCreateFont(FallbackFontName, installedFontNames, out resolvedFontName);

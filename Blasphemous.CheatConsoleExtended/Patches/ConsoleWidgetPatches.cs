@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace Blasphemous.CheatConsoleExtended.Patches;
 
-[HarmonyPatch(typeof(ConsoleWidget), "OnPlayerSpawn", new[] { typeof(Penitent) })]
+[HarmonyPatch(typeof(ConsoleWidget), "OnPlayerSpawn", [typeof(Penitent)])]
 internal static class ConsoleWidget_OnPlayerSpawn_ApplyFont_Patch
 {
     [HarmonyPostfix]
@@ -17,7 +17,7 @@ internal static class ConsoleWidget_OnPlayerSpawn_ApplyFont_Patch
     }
 }
 
-[HarmonyPatch(typeof(ConsoleWidget), "Write", new[] { typeof(string) })]
+[HarmonyPatch(typeof(ConsoleWidget), "Write", [typeof(string)])]
 internal static class ConsoleWidget_Write_ApplyFont_Patch
 {
     [HarmonyPostfix]
@@ -49,18 +49,12 @@ internal static class ConsoleFontApplicator
 
         if (console.input != null)
         {
-            if (console.input.textComponent != null)
-            {
-                console.input.textComponent.font = font;
-            }
+            console.input.textComponent?.font = font;
 
             if (console.input.placeholder != null)
             {
                 var placeholderText = console.input.placeholder.GetComponent<Text>();
-                if (placeholderText != null)
-                {
-                    placeholderText.font = font;
-                }
+                placeholderText?.font = font;
             }
         }
 
@@ -72,10 +66,7 @@ internal static class ConsoleFontApplicator
         for (var i = 0; i < console.content.childCount; i++)
         {
             var text = console.content.GetChild(i).GetComponent<Text>();
-            if (text != null)
-            {
-                text.font = font;
-            }
+            text?.font = font;
         }
 
         Canvas.ForceUpdateCanvases();
@@ -109,12 +100,7 @@ internal static class ConsoleFontApplicator
 
     private static void ApplyOutputLayout(Text text, Font font)
     {
-        var layoutElement = text.GetComponent<LayoutElement>();
-        if (layoutElement == null)
-        {
-            layoutElement = text.gameObject.AddComponent<LayoutElement>();
-        }
-
+        var layoutElement = text.GetComponent<LayoutElement>() ?? text.gameObject.AddComponent<LayoutElement>();
         var preferredHeight = text.preferredHeight;
         var lineCount = Mathf.Max(1, text.cachedTextGeneratorForLayout.lineCount);
         var lineHeight = font.lineHeight / Mathf.Max(1f, text.pixelsPerUnit);

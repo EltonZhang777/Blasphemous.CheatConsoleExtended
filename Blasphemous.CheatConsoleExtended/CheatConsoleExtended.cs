@@ -17,10 +17,10 @@ public class CheatConsoleExtended : BlasMod
         Config = ConfigHandler.Load<MasterConfig>() ?? new MasterConfig();
         ConsoleFont = new ConsoleFontManager(Config);
 
-        #if DEBUG
+#if DEBUG
         CheatConsoleLogging.LogCheatConsoleInput(true, LogLevel.Info, true);
         CheatConsoleLogging.LogCheatConsoleOutput(true, LogLevel.Info, true);
-        #endif
+#endif
     }
 
     protected override void OnRegisterServices(ModServiceProvider provider)

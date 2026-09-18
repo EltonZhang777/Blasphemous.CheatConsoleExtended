@@ -1,7 +1,7 @@
-using System;
-using System.Collections.Generic;
 using Blasphemous.CheatConsole;
 using Blasphemous.ModdingAPI;
+using System;
+using System.Collections.Generic;
 
 namespace Blasphemous.CheatConsoleExtended;
 
