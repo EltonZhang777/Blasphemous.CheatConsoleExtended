@@ -1,0 +1,135 @@
+using Gameplay.GameControllers.Penitent;
+using Gameplay.UI.Widgets;
+using HarmonyLib;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Blasphemous.CheatConsoleExtended.Patches;
+
+[HarmonyPatch(typeof(ConsoleWidget), "OnPlayerSpawn", [typeof(Penitent)])]
+internal static class ConsoleWidget_OnPlayerSpawn_ApplyFont_Patch
+{
+    [HarmonyPostfix]
+    private static void Postfix(ConsoleWidget __instance)
+    {
+        ConsoleFontApplicator.ApplyTo(__instance);
+        ConsoleFontApplicator.RefreshLayout(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(ConsoleWidget), "Write", [typeof(string)])]
+internal static class ConsoleWidget_Write_ApplyFont_Patch
+{
+    [HarmonyPostfix]
+    private static void Postfix(ConsoleWidget __instance)
+    {
+        ConsoleFontApplicator.ApplyToLatestOutput(__instance);
+    }
+}
+
+internal static class ConsoleFontApplicator
+{
+    internal static void ApplyCurrent()
+    {
+        var console = ConsoleWidget.Instance;
+        if (console != null)
+        {
+            ApplyTo(console);
+            RefreshLayout(console);
+        }
+    }
+
+    internal static void ApplyTo(ConsoleWidget console)
+    {
+        var font = GetCurrentFont();
+        if (console == null || font == null)
+        {
+            return;
+        }
+
+        if (console.input != null)
+        {
+            console.input.textComponent?.font = font;
+
+            if (console.input.placeholder != null)
+            {
+                var placeholderText = console.input.placeholder.GetComponent<Text>();
+                placeholderText?.font = font;
+            }
+        }
+
+        if (console.content == null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < console.content.childCount; i++)
+        {
+            var text = console.content.GetChild(i).GetComponent<Text>();
+            text?.font = font;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        for (var i = 0; i < console.content.childCount; i++)
+        {
+            var text = console.content.GetChild(i).GetComponent<Text>();
+            if (text != null)
+            {
+                ApplyOutputLayout(text, font);
+            }
+        }
+    }
+
+    internal static void ApplyToLatestOutput(ConsoleWidget console)
+    {
+        var font = GetCurrentFont();
+        if (console == null || font == null || console.content == null || console.content.childCount == 0)
+        {
+            return;
+        }
+
+        var text = console.content.GetChild(console.content.childCount - 1).GetComponent<Text>();
+        if (text != null)
+        {
+            text.font = font;
+            Canvas.ForceUpdateCanvases();
+            ApplyOutputLayout(text, font);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
+        }
+    }
+
+    private static void ApplyOutputLayout(Text text, Font font)
+    {
+        var layoutElement = text.GetComponent<LayoutElement>() ?? text.gameObject.AddComponent<LayoutElement>();
+        var preferredHeight = text.preferredHeight;
+        var lineCount = Mathf.Max(1, text.cachedTextGeneratorForLayout.lineCount);
+        var lineHeight = font.lineHeight / Mathf.Max(1f, text.pixelsPerUnit);
+        var rowHeight = lineHeight > 0f ? lineCount * lineHeight : preferredHeight;
+        if (preferredHeight > rowHeight)
+        {
+            rowHeight = preferredHeight;
+        }
+
+        if (rowHeight > 0f)
+        {
+            layoutElement.preferredHeight = rowHeight;
+        }
+    }
+
+    internal static void RefreshLayout(ConsoleWidget console)
+    {
+        if (console.content == null)
+        {
+            return;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
+    }
+
+    private static Font GetCurrentFont()
+    {
+        var mod = Main.CheatConsoleExtended;
+        return mod == null || mod.ConsoleFont == null ? null : mod.ConsoleFont.CurrentFont;
+    }
+}
