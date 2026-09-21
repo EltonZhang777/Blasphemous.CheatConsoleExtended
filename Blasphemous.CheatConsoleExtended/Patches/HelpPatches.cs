@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+using Blasphemous.NewbieEltonLibs.Extensions.GameLibs;
 using Framework.Managers;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
 using HarmonyLib;
-using Blasphemous.NewbieEltonLibs.Extensions.GameLibs;
+using System.Collections.Generic;
 using Tools.DataContainer;
 
 namespace Blasphemous.CheatConsoleExtended;
@@ -37,6 +37,7 @@ internal static class Help_RenderCommandCatalog_Patch
     private static void WriteCatalog(ConsoleWidget console)
     {
         List<CommandCatalogEntry> vanillaCommands = new List<CommandCatalogEntry>();
+        List<string> sharedCommandIds = new List<string>();
         List<CommandCatalogEntry> modCommands = new List<CommandCatalogEntry>();
 
         List<ConsoleCommand> commands = TraverseUtils.GetValue<List<ConsoleCommand>>(
@@ -65,13 +66,13 @@ internal static class Help_RenderCommandCatalog_Patch
                 {
                     if (command != null && !string.IsNullOrEmpty(command.Id))
                     {
-                        vanillaCommands.Add(new CommandCatalogEntry(command.Id));
+                        sharedCommandIds.Add(command.Id);
                     }
                 }
             }
         }
 
-        foreach (string line in HelpCommandCatalogRenderer.Render(vanillaCommands, modCommands))
+        foreach (string line in HelpCommandCatalogRenderer.Render(vanillaCommands, sharedCommandIds, modCommands))
         {
             console.Write(line);
         }
