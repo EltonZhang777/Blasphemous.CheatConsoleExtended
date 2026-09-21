@@ -13,7 +13,7 @@ internal sealed class CommandDefinition
     {
         Name = name;
         Value = value;
-        Subcommands = new List<string>();
+        Subcommands = [];
         if (subcommands != null)
             Subcommands.AddRange(subcommands);
     }
@@ -31,7 +31,7 @@ internal static class StrictCommandResolver
     {
         string text = (rawText ?? string.Empty).Replace("\r", string.Empty).Trim();
         return text.Length == 0
-            ? new string[0]
+            ? []
             : text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
     }
 
@@ -51,7 +51,7 @@ internal static class StrictCommandResolver
 
     public static List<string> GetSuggestions(string input, IList<CommandDefinition> commands, int maxDistance)
     {
-        List<string> suggestions = new List<string>();
+        List<string> suggestions = [];
         foreach (CommandDefinition command in FindNearest(input, commands, maxDistance))
             suggestions.Add(command.Name);
         return suggestions;
@@ -73,7 +73,7 @@ internal static class StrictCommandResolver
 
     public static List<string> GetSubcommandSuggestions(CommandDefinition command, string input, int maxDistance)
     {
-        List<string> suggestions = new List<string>();
+        List<string> suggestions = [];
         if (command == null)
             return suggestions;
 
@@ -88,7 +88,7 @@ internal static class StrictCommandResolver
         IList<CommandDefinition> commands,
         int maxDistance)
     {
-        List<string> suggestions = new List<string>();
+        List<string> suggestions = [];
         List<CommandDefinition> topLevelCandidates = FindNearest(topLevelInput, commands, maxDistance);
         foreach (CommandDefinition command in topLevelCandidates)
             suggestions.Add(command.Name);
@@ -119,7 +119,7 @@ internal static class StrictCommandResolver
         IList<CommandDefinition> commands,
         int maxDistance)
     {
-        List<CommandDefinition> nearest = new List<CommandDefinition>();
+        List<CommandDefinition> nearest = [];
         if (string.IsNullOrEmpty(input) || commands == null || NormalizeDistance(maxDistance) == 0)
             return nearest;
 
@@ -148,7 +148,7 @@ internal static class StrictCommandResolver
 
     private static List<string> FindNearestNames(string input, IList<string> names, int maxDistance)
     {
-        List<string> nearest = new List<string>();
+        List<string> nearest = [];
         if (string.IsNullOrEmpty(input) || names == null || NormalizeDistance(maxDistance) == 0)
             return nearest;
 
@@ -194,7 +194,7 @@ internal static class StrictCommandResolver
             distances[1, j + 1] = j;
         }
 
-        Dictionary<char, int> lastRow = new Dictionary<char, int>();
+        Dictionary<char, int> lastRow = [];
 
         for (int i = 1; i <= left.Length; i++)
         {

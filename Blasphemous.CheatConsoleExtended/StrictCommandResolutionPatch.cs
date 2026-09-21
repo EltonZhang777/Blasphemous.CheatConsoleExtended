@@ -1,6 +1,3 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using Blasphemous.CheatConsole;
 using Blasphemous.NewbieEltonLibs.Extensions.GameLibs;
 using Framework.FrameworkCore;
@@ -8,6 +5,9 @@ using Framework.Managers;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
 using HarmonyLib;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using Tools.DataContainer;
 
 namespace Blasphemous.CheatConsoleExtended;
@@ -79,7 +79,7 @@ internal static class StrictCommandRuntime
 
     private static List<CommandDefinition> CreateCatalog(ConsoleWidget console)
     {
-        List<CommandDefinition> catalog = new List<CommandDefinition>();
+        List<CommandDefinition> catalog = [];
         List<ConsoleCommand> commands = TraverseUtils.GetValue<List<ConsoleCommand>>(console, "commands");
         if (commands != null)
         {
@@ -117,12 +117,11 @@ internal static class StrictCommandRuntime
 
     private static List<string> GetSubcommands(ConsoleCommand command)
     {
-        List<string> subcommands = new List<string>();
+        List<string> subcommands = [];
         bool isSharedCommands = false;
         foreach (string name in command.GetNames())
         {
-            string[] knownSubcommands;
-            if (VanillaSubcommands.TryGetValue(name, out knownSubcommands))
+            if (VanillaSubcommands.TryGetValue(name, out string[] knownSubcommands))
                 AddUnique(subcommands, knownSubcommands);
             if (string.Equals(name, "command", StringComparison.OrdinalIgnoreCase))
                 isSharedCommands = true;
@@ -157,12 +156,12 @@ internal static class StrictCommandRuntime
             {
                 availableCommands = Traverse.Create(modCommand)
                     .Method("AddSubCommands")
-                    .GetValue<IDictionary>(new object[0]);
+                    .GetValue<IDictionary>([]);
                 if (availableCommands != null)
                     TraverseUtils.SetValue(ref modCommand, "availableCommands", availableCommands);
             }
 
-            List<string> names = new List<string>();
+            List<string> names = [];
             if (availableCommands != null)
             {
                 foreach (DictionaryEntry item in availableCommands)
@@ -180,7 +179,7 @@ internal static class StrictCommandRuntime
     {
         Traverse.Create(console)
             .Method("ProcessInternalCommand")
-            .GetValue<bool>(new object[] { commandName });
+            .GetValue<bool>([commandName]);
     }
 
     private static void Execute(ConsoleCommand command, string name, string[] parameters)
@@ -248,46 +247,46 @@ internal static class StrictCommandRuntime
     {
         return new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            ["achievement"] = new[] { "help", "addprogress", "check", "checkprogress", "clear", "clearall", "clearsteam", "clearsteamall", "disablepopup", "enablepopup", "grant" },
-            ["alms"] = new[] { "help", "current", "list", "consume", "set" },
-            ["audio"] = new[] { "help", "list", "master", "music", "sfx", "voiceover" },
-            ["bonus"] = new[] { "help", "list" },
-            ["bossrush"] = new[] { "help", "end", "golast", "hub", "next", "printscore", "start", "unlock" },
-            ["camera"] = new[] { "all", "game", "scene", "ui", "virtual" },
-            ["completion"] = new[] { "base", "get", "show", "ng+" },
-            ["debug"] = new[] { "help", "list", "off", "on" },
-            ["show_debug_ui"] = new[] { "help", "current", "off", "on" },
-            ["demake"] = new[] { "help", "enter" },
-            ["dialog"] = new[] { "help", "list", "start" },
-            ["flag"] = new[] { "help", "set", "clear", "test" },
-            ["gamemode"] = new[] { "help", "list", "current", "set" },
-            ["guilt"] = new[] { "help", "get", "reset", "add" },
-            ["language"] = new[] { "help", "list", "current", "set" },
-            ["map"] = new[] { "help", "list", "set", "secrets", "secret", "unrevealed", "reveal" },
-            ["miriam"] = new[] { "help", "status", "start", "end", "activateportal", "deactivateportal", "gotogoal" },
-            ["penitence"] = new[] { "help", "current", "activate", "deactivate", "abandon", "complete", "listall", "listabandoned", "listcompleted" },
-            ["savegame"] = new[] { "help", "load", "save", "enablenewgameplus" },
-            ["showui"] = new[] { "help", "current", "off", "on" },
-            ["skill"] = new[] { "help", "list", "lock", "lockall", "showui", "unlock", "unlockall" },
-            ["skin"] = new[] { "help", "get", "list", "listunlocked", "lock", "set", "unlock" },
-            ["health"] = new[] { "help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax" },
-            ["flask"] = new[] { "help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax" },
-            ["fervour"] = new[] { "help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax" },
-            ["purge"] = new[] { "help", "current", "set", "reset", "upgrade", "upgradeto" },
-            ["meaculpa"] = new[] { "help", "current", "set", "reset", "upgrade", "upgradeto" },
-            ["strength"] = new[] { "help", "current", "set", "reset", "upgrade", "upgradeto" },
-            ["flaskhealth"] = new[] { "help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax" },
-            ["teleport"] = new[] { "help", "list", "go", "showui", "unlock" },
-            ["testplan"] = new[] { "help", "1" },
-            ["tutorial"] = new[] { "list", "show" },
-            ["relic"] = new[] { "help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip" },
-            ["questitem"] = new[] { "help", "list", "listowned", "add", "remove" },
-            ["collectible"] = new[] { "help", "list", "listowned", "add", "remove" },
-            ["bead"] = new[] { "help", "list", "listowned", "setslots", "add", "remove", "equiped", "equip", "unequip" },
-            ["prayer"] = new[] { "help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip", "decipher" },
-            ["sword"] = new[] { "help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip" },
-            ["key"] = new[] { "help", "list", "add", "remove" },
-            ["command"] = new[] { "help", "list", "refresh" }
+            ["achievement"] = ["help", "addprogress", "check", "checkprogress", "clear", "clearall", "clearsteam", "clearsteamall", "disablepopup", "enablepopup", "grant"],
+            ["alms"] = ["help", "current", "list", "consume", "set"],
+            ["audio"] = ["help", "list", "master", "music", "sfx", "voiceover"],
+            ["bonus"] = ["help", "list"],
+            ["bossrush"] = ["help", "end", "golast", "hub", "next", "printscore", "start", "unlock"],
+            ["camera"] = ["all", "game", "scene", "ui", "virtual"],
+            ["completion"] = ["base", "get", "show", "ng+"],
+            ["debug"] = ["help", "list", "off", "on"],
+            ["show_debug_ui"] = ["help", "current", "off", "on"],
+            ["demake"] = ["help", "enter"],
+            ["dialog"] = ["help", "list", "start"],
+            ["flag"] = ["help", "set", "clear", "test"],
+            ["gamemode"] = ["help", "list", "current", "set"],
+            ["guilt"] = ["help", "get", "reset", "add"],
+            ["language"] = ["help", "list", "current", "set"],
+            ["map"] = ["help", "list", "set", "secrets", "secret", "unrevealed", "reveal"],
+            ["miriam"] = ["help", "status", "start", "end", "activateportal", "deactivateportal", "gotogoal"],
+            ["penitence"] = ["help", "current", "activate", "deactivate", "abandon", "complete", "listall", "listabandoned", "listcompleted"],
+            ["savegame"] = ["help", "load", "save", "enablenewgameplus"],
+            ["showui"] = ["help", "current", "off", "on"],
+            ["skill"] = ["help", "list", "lock", "lockall", "showui", "unlock", "unlockall"],
+            ["skin"] = ["help", "get", "list", "listunlocked", "lock", "set", "unlock"],
+            ["health"] = ["help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax"],
+            ["flask"] = ["help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax"],
+            ["fervour"] = ["help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax"],
+            ["purge"] = ["help", "current", "set", "reset", "upgrade", "upgradeto"],
+            ["meaculpa"] = ["help", "current", "set", "reset", "upgrade", "upgradeto"],
+            ["strength"] = ["help", "current", "set", "reset", "upgrade", "upgradeto"],
+            ["flaskhealth"] = ["help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax"],
+            ["teleport"] = ["help", "list", "go", "showui", "unlock"],
+            ["testplan"] = ["help", "1"],
+            ["tutorial"] = ["list", "show"],
+            ["relic"] = ["help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip"],
+            ["questitem"] = ["help", "list", "listowned", "add", "remove"],
+            ["collectible"] = ["help", "list", "listowned", "add", "remove"],
+            ["bead"] = ["help", "list", "listowned", "setslots", "add", "remove", "equiped", "equip", "unequip"],
+            ["prayer"] = ["help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip", "decipher"],
+            ["sword"] = ["help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip"],
+            ["key"] = ["help", "list", "add", "remove"],
+            ["command"] = ["help", "list", "refresh"]
         };
     }
 }
