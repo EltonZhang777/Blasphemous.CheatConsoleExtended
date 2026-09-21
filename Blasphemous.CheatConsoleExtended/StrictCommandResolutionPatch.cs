@@ -1,8 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using Blasphemous.CheatConsole;
+using Blasphemous.NewbieEltonLibs.Extensions.GameLibs;
 using Framework.FrameworkCore;
 using Framework.Managers;
 using Gameplay.UI.Console;
@@ -50,7 +50,7 @@ internal static class StrictCommandRuntime
             }
 
             if (tokens.Length == 1)
-                console.ProcessInternalCommand(command.Name);
+                ExecuteInternalCommand(console, command.Name);
             else
                 console.Write("Command not found. Use Help for more information.");
             return;
@@ -80,18 +80,22 @@ internal static class StrictCommandRuntime
     private static List<CommandDefinition> CreateCatalog(ConsoleWidget console)
     {
         List<CommandDefinition> catalog = new List<CommandDefinition>();
-        foreach (ConsoleCommand command in console.commands)
+        List<ConsoleCommand> commands = TraverseUtils.GetValue<List<ConsoleCommand>>(console, "commands");
+        if (commands != null)
         {
-            if (command == null)
-                continue;
-
-            List<string> subcommands = GetSubcommands(command);
-            foreach (string name in command.GetNames())
+            foreach (ConsoleCommand command in commands)
             {
-                if (string.IsNullOrEmpty(name))
+                if (command == null)
                     continue;
 
-                catalog.Add(new CommandDefinition(name, subcommands, command));
+                List<string> subcommands = GetSubcommands(command);
+                foreach (string name in command.GetNames())
+                {
+                    if (string.IsNullOrEmpty(name))
+                        continue;
+
+                    catalog.Add(new CommandDefinition(name, subcommands, command));
+                }
             }
         }
 
@@ -144,27 +148,18 @@ internal static class StrictCommandRuntime
 
         try
         {
-            FieldInfo commandField = command.GetType().GetField("command", BindingFlags.Instance | BindingFlags.NonPublic);
-            object modCommand = commandField == null ? null : commandField.GetValue(command);
+            ModCommand modCommand = TraverseUtils.GetValue<ModCommand>(command, "command");
             if (modCommand == null)
                 return new string[0];
 
-            FieldInfo availableCommandsField = typeof(ModCommand).GetField(
-                "availableCommands",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            IDictionary availableCommands = availableCommandsField == null
-                ? null
-                : availableCommandsField.GetValue(modCommand) as IDictionary;
+            IDictionary availableCommands = TraverseUtils.GetValue<IDictionary>(modCommand, "availableCommands");
             if (availableCommands == null)
             {
-                MethodInfo addSubCommands = typeof(ModCommand).GetMethod(
-                    "AddSubCommands",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                availableCommands = addSubCommands == null
-                    ? null
-                    : addSubCommands.Invoke(modCommand, null) as IDictionary;
-                if (availableCommands != null && availableCommandsField != null)
-                    availableCommandsField.SetValue(modCommand, availableCommands);
+                availableCommands = Traverse.Create(modCommand)
+                    .Method("AddSubCommands")
+                    .GetValue<IDictionary>(new object[0]);
+                if (availableCommands != null)
+                    TraverseUtils.SetValue(ref modCommand, "availableCommands", availableCommands);
             }
 
             List<string> names = new List<string>();
@@ -179,6 +174,13 @@ internal static class StrictCommandRuntime
         {
             return new string[0];
         }
+    }
+
+    private static void ExecuteInternalCommand(ConsoleWidget console, string commandName)
+    {
+        Traverse.Create(console)
+            .Method("ProcessInternalCommand")
+            .GetValue<bool>(new object[] { commandName });
     }
 
     private static void Execute(ConsoleCommand command, string name, string[] parameters)
