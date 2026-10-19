@@ -4,9 +4,9 @@ namespace Blasphemous.CheatConsoleExtended;
 
 internal class MasterConfig
 {
-    public const string DefaultTopLevelCommandColor = "#FFFF00";
+    public const string DefaultTopLevelCommandColor = "#FFFF55";
     public const string DefaultSubcommandColor = "#00FFFF";
-    public const string DefaultParameterColor = "#0000FF";
+    public const string DefaultParameterColor = "#0088FF";
     public const string DefaultOutputColor = "#FFFFFF";
 
     public object TopLevelCommandColor { get; set; }
