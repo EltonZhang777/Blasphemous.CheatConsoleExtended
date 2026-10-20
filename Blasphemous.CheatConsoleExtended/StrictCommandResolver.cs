@@ -54,13 +54,38 @@ internal static class StrictCommandResolver
         if (tokens == null || tokens.Length == 0)
             return false;
 
+        if (IsInternalCommand(tokens[0], commands))
+            return false;
+
         CommandDefinition command = FindExact(tokens[0], commands);
-        if (command == null || (command.Value == null && tokens.Length > 1))
+        if (command == null || command.Value == null)
             return false;
 
         return tokens.Length == 1
             || command.Subcommands.Count == 0
             || FindExactSubcommand(command, tokens[1]) != null;
+    }
+
+    public static bool ShouldProcessInternalCommand(string rawText, string[] tokens, IList<CommandDefinition> commands)
+    {
+        if (tokens == null || tokens.Length != 1 || !string.Equals(rawText, tokens[0], StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return IsInternalCommand(tokens[0], commands);
+    }
+
+    private static bool IsInternalCommand(string token, IList<CommandDefinition> commands)
+    {
+        if (string.IsNullOrEmpty(token) || commands == null)
+            return false;
+
+        foreach (CommandDefinition command in commands)
+        {
+            if (command != null && command.Value == null && string.Equals(command.Name, token, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     public static List<string> GetSuggestions(string input, IList<CommandDefinition> commands, int maxDistance)

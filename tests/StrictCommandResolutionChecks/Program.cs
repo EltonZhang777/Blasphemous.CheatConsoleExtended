@@ -78,21 +78,52 @@ internal static class Program
             new CommandDefinition("audio", new[] { "help", "master" }, new object()),
             new CommandDefinition("grant", null, new object()),
             new CommandDefinition("shared_sequence", null, new object()),
-            new CommandDefinition("clear")
+            new CommandDefinition("clear"),
+            new CommandDefinition("cls"),
+            new CommandDefinition("mirrorlog")
         };
         Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("AUDIO MASTER MiXeD"), boundaryCatalog));
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("aud"), boundaryCatalog));
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("AUDIO mas"), boundaryCatalog));
-        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("clear"), boundaryCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("clear"), boundaryCatalog));
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("clear now"), boundaryCatalog));
         int internalExecutions = 0;
-        Check(RouteThroughOriginalBoundary("clear", boundaryCatalog, _ => internalExecutions++));
-        Check(internalExecutions == 1);
+        int internalOriginalCalls = 0;
+        foreach (string name in new[] { "clear", "cls", "mirrorlog" })
+        {
+            string[] tokens = StrictCommandResolver.Tokenize(name);
+            Check(StrictCommandResolver.ShouldProcessInternalCommand(name, tokens, boundaryCatalog));
+            Check(!StrictCommandResolver.ShouldRunOriginal(tokens, boundaryCatalog));
+            Check(!RouteThroughCommandBoundary(name, boundaryCatalog, _ => internalExecutions++, _ => internalOriginalCalls++));
+        }
+        Check(internalExecutions == 3 && internalOriginalCalls == 0);
+        Check(!StrictCommandResolver.ShouldProcessInternalCommand("clear ", StrictCommandResolver.Tokenize("clear "), boundaryCatalog));
+        Check(!StrictCommandResolver.ShouldProcessInternalCommand(" clear", StrictCommandResolver.Tokenize(" clear"), boundaryCatalog));
+
+        var collidingCatalog = new List<CommandDefinition>
+        {
+            new CommandDefinition("clear", null, new object()),
+            new CommandDefinition("clear")
+        };
+        int collisionInternalCalls = 0;
+        int collisionOriginalCalls = 0;
+        Check(StrictCommandResolver.ShouldProcessInternalCommand("clear", StrictCommandResolver.Tokenize("clear"), collidingCatalog));
+        Check(!RouteThroughCommandBoundary("clear", collidingCatalog, _ => collisionInternalCalls++, _ => collisionOriginalCalls++));
+        Check(collisionInternalCalls == 1 && collisionOriginalCalls == 0);
+        foreach (string invalidInput in new[] { "clear ", " clear", "clear now" })
+            Check(!RouteThroughCommandBoundary(invalidInput, collidingCatalog, _ => collisionInternalCalls++, _ => collisionOriginalCalls++));
+        Check(collisionInternalCalls == 1 && collisionOriginalCalls == 0);
+
+        int invalidInternalCalls = 0;
+        int invalidOriginalCalls = 0;
+        Check(!RouteThroughCommandBoundary("clear ", boundaryCatalog, _ => invalidInternalCalls++, _ => invalidOriginalCalls++));
+        Check(!RouteThroughCommandBoundary("clear now", boundaryCatalog, _ => invalidInternalCalls++, _ => invalidOriginalCalls++));
+        Check(invalidInternalCalls == 0 && invalidOriginalCalls == 0);
 
         string rawParameters = " AUDIO  MASTER  MiXeD-Token ";
         int originalCalls = 0;
         string receivedInput = null;
-        Check(RouteThroughOriginalBoundary(rawParameters, boundaryCatalog, raw =>
+        Check(RouteThroughCommandBoundary(rawParameters, boundaryCatalog, _ => { }, raw =>
         {
             originalCalls++;
             receivedInput = raw;
@@ -101,7 +132,7 @@ internal static class Program
 
         int validationCalls = 0;
         bool validationSucceeded = true;
-        Check(RouteThroughOriginalBoundary("grant invalid-int", boundaryCatalog, raw =>
+        Check(RouteThroughCommandBoundary("grant invalid-int", boundaryCatalog, _ => { }, raw =>
         {
             validationCalls++;
             validationSucceeded = int.TryParse(StrictCommandResolver.Tokenize(raw)[1], out _);
@@ -109,25 +140,34 @@ internal static class Program
         Check(validationCalls == 1 && !validationSucceeded);
 
         int rejectedExecutions = 0;
-        Check(!RouteThroughOriginalBoundary("shared", boundaryCatalog, _ => rejectedExecutions++));
+        Check(!RouteThroughCommandBoundary("shared", boundaryCatalog, _ => rejectedExecutions++, _ => rejectedExecutions++));
         Check(rejectedExecutions == 0);
 
         int sharedExecutions = 0;
         int recursiveExecutions = 0;
-        Check(RouteThroughOriginalBoundary("shared_sequence", boundaryCatalog, _ =>
+        int recursiveOriginalCalls = 0;
+        Check(RouteThroughCommandBoundary("shared_sequence", boundaryCatalog, _ => { }, _ =>
         {
             sharedExecutions++;
-            Check(RouteThroughOriginalBoundary("clear", boundaryCatalog, __ => recursiveExecutions++));
+            Check(!RouteThroughCommandBoundary("clear", boundaryCatalog, __ => recursiveExecutions++, __ => recursiveOriginalCalls++));
         }));
-        Check(sharedExecutions == 1 && recursiveExecutions == 1);
+        Check(sharedExecutions == 1 && recursiveExecutions == 1 && recursiveOriginalCalls == 0);
     }
 
-    private static bool RouteThroughOriginalBoundary(
+    private static bool RouteThroughCommandBoundary(
         string rawText,
         IList<CommandDefinition> commands,
+        Action<string> processInternal,
         Action<string> original)
     {
-        if (!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize(rawText), commands))
+        string[] tokens = StrictCommandResolver.Tokenize(rawText);
+        if (StrictCommandResolver.ShouldProcessInternalCommand(rawText, tokens, commands))
+        {
+            processInternal(rawText);
+            return false;
+        }
+
+        if (!StrictCommandResolver.ShouldRunOriginal(tokens, commands))
             return false;
 
         original(rawText);

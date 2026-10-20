@@ -23,6 +23,16 @@ internal static class StrictCommandRuntime
             return false;
 
         List<CommandDefinition> catalog = CreateCatalog(console);
+        if (StrictCommandResolver.ShouldProcessInternalCommand(rawText, tokens, catalog))
+        {
+            bool handled = Traverse.Create(console)
+                .Method("ProcessInternalCommand")
+                .GetValue<bool>(rawText);
+            if (!handled)
+                console.Write("Command not found. Use Help for more information.");
+            return false;
+        }
+
         CommandDefinition command = StrictCommandResolver.FindExact(tokens[0], catalog);
         if (StrictCommandResolver.ShouldRunOriginal(tokens, catalog))
             return true;
