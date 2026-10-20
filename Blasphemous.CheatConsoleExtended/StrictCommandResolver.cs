@@ -49,6 +49,20 @@ internal static class StrictCommandResolver
         return null;
     }
 
+    public static bool ShouldRunOriginal(string[] tokens, IList<CommandDefinition> commands)
+    {
+        if (tokens == null || tokens.Length == 0)
+            return false;
+
+        CommandDefinition command = FindExact(tokens[0], commands);
+        if (command == null || (command.Value == null && tokens.Length > 1))
+            return false;
+
+        return tokens.Length == 1
+            || command.Subcommands.Count == 0
+            || FindExactSubcommand(command, tokens[1]) != null;
+    }
+
     public static List<string> GetSuggestions(string input, IList<CommandDefinition> commands, int maxDistance)
     {
         List<string> suggestions = [];

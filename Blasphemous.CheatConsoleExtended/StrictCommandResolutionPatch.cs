@@ -16,51 +16,29 @@ internal static class StrictCommandRuntime
 {
     private static readonly Dictionary<string, string[]> VanillaSubcommands = CreateVanillaSubcommands();
 
-    internal static void Process(ConsoleWidget console, string rawText)
+    internal static bool Process(ConsoleWidget console, string rawText)
     {
         string[] tokens = StrictCommandResolver.Tokenize(rawText);
         if (tokens.Length == 0)
-            return;
+            return false;
 
         List<CommandDefinition> catalog = CreateCatalog(console);
         CommandDefinition command = StrictCommandResolver.FindExact(tokens[0], catalog);
-        if (command != null)
-        {
-            if (command.Value is ConsoleCommand consoleCommand)
-            {
-                bool invalidSubcommand = tokens.Length > 1
-                    && command.Subcommands.Count > 0
-                    && StrictCommandResolver.FindExactSubcommand(command, tokens[1]) == null;
-
-                Execute(consoleCommand, command.Name, Slice(tokens, 1));
-                if (invalidSubcommand)
-                {
-                    WriteSuggestion(console, StrictCommandResolver.GetSubcommandSuggestions(
-                        command,
-                        tokens[1],
-                        GetSuggestionDistance()));
-                }
-                return;
-            }
-
-            if (command.Value is SharedCommand)
-            {
-                Core.SharedCommands.ExecuteCommand(command.Name);
-                return;
-            }
-
-            if (tokens.Length == 1)
-                ExecuteInternalCommand(console, command.Name);
-            else
-                console.Write("Command not found. Use Help for more information.");
-            return;
-        }
+        if (StrictCommandResolver.ShouldRunOriginal(tokens, catalog))
+            return true;
 
         console.Write("Command not found. Use Help for more information.");
-        List<string> suggestions = tokens.Length > 1
-            ? StrictCommandResolver.GetHierarchicalSuggestions(tokens[0], tokens[1], catalog, GetSuggestionDistance())
-            : StrictCommandResolver.GetSuggestions(tokens[0], catalog, GetSuggestionDistance());
-        WriteSuggestion(console, suggestions);
+        if (command == null)
+        {
+            List<string> suggestions = tokens.Length > 1
+                ? StrictCommandResolver.GetHierarchicalSuggestions(tokens[0], tokens[1], catalog, GetSuggestionDistance())
+                : StrictCommandResolver.GetSuggestions(tokens[0], catalog, GetSuggestionDistance());
+            WriteSuggestion(console, suggestions);
+        }
+        else if (command.Value is ConsoleCommand && tokens.Length > 1 && command.Subcommands.Count > 0)
+            WriteSuggestion(console, StrictCommandResolver.GetSubcommandSuggestions(command, tokens[1], GetSuggestionDistance()));
+
+        return false;
     }
 
     internal static SharedCommand FindSharedCommand(SharedCommands sharedCommands, string id)
@@ -175,25 +153,6 @@ internal static class StrictCommandRuntime
         }
     }
 
-    private static void ExecuteInternalCommand(ConsoleWidget console, string commandName)
-    {
-        Traverse.Create(console)
-            .Method("ProcessInternalCommand")
-            .GetValue<bool>([commandName]);
-    }
-
-    private static void Execute(ConsoleCommand command, string name, string[] parameters)
-    {
-        string[] lowerParameters = new string[parameters.Length];
-        for (int i = 0; i < parameters.Length; i++)
-            lowerParameters[i] = parameters[i].ToLowerInvariant();
-
-        if (command.HasLowerParameters() || command.ToLowerAll())
-            command.Execute(name, lowerParameters);
-        else
-            command.Execute(name, parameters);
-    }
-
     private static int GetSuggestionDistance()
     {
         if (Main.CheatConsoleExtended == null || Main.CheatConsoleExtended.Config == null)
@@ -216,13 +175,6 @@ internal static class StrictCommandRuntime
                 return true;
         }
         return false;
-    }
-
-    private static string[] Slice(string[] values, int start)
-    {
-        string[] result = new string[values.Length - start];
-        Array.Copy(values, start, result, 0, result.Length);
-        return result;
     }
 
     private static void AddUnique(List<string> target, IEnumerable<string> values)
@@ -296,8 +248,7 @@ internal static class ConsoleWidget_ProcessCommand_Patch
 {
     private static bool Prefix(ConsoleWidget __instance, string rawText)
     {
-        StrictCommandRuntime.Process(__instance, rawText);
-        return false;
+        return StrictCommandRuntime.Process(__instance, rawText);
     }
 }
 

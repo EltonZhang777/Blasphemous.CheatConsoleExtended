@@ -72,6 +72,66 @@ internal static class Program
         var normalizedConfig = new MasterConfig { CommandSuggestionDistance = -5 };
         normalizedConfig.CommandSuggestionDistance = StrictCommandResolver.NormalizeDistance(normalizedConfig.CommandSuggestionDistance);
         Check(normalizedConfig.CommandSuggestionDistance == 0);
+
+        var boundaryCatalog = new List<CommandDefinition>
+        {
+            new CommandDefinition("audio", new[] { "help", "master" }, new object()),
+            new CommandDefinition("grant", null, new object()),
+            new CommandDefinition("shared_sequence", null, new object()),
+            new CommandDefinition("clear")
+        };
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("AUDIO MASTER MiXeD"), boundaryCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("aud"), boundaryCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("AUDIO mas"), boundaryCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("clear"), boundaryCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("clear now"), boundaryCatalog));
+        int internalExecutions = 0;
+        Check(RouteThroughOriginalBoundary("clear", boundaryCatalog, _ => internalExecutions++));
+        Check(internalExecutions == 1);
+
+        string rawParameters = " AUDIO  MASTER  MiXeD-Token ";
+        int originalCalls = 0;
+        string receivedInput = null;
+        Check(RouteThroughOriginalBoundary(rawParameters, boundaryCatalog, raw =>
+        {
+            originalCalls++;
+            receivedInput = raw;
+        }));
+        Check(originalCalls == 1 && receivedInput == rawParameters);
+
+        int validationCalls = 0;
+        bool validationSucceeded = true;
+        Check(RouteThroughOriginalBoundary("grant invalid-int", boundaryCatalog, raw =>
+        {
+            validationCalls++;
+            validationSucceeded = int.TryParse(StrictCommandResolver.Tokenize(raw)[1], out _);
+        }));
+        Check(validationCalls == 1 && !validationSucceeded);
+
+        int rejectedExecutions = 0;
+        Check(!RouteThroughOriginalBoundary("shared", boundaryCatalog, _ => rejectedExecutions++));
+        Check(rejectedExecutions == 0);
+
+        int sharedExecutions = 0;
+        int recursiveExecutions = 0;
+        Check(RouteThroughOriginalBoundary("shared_sequence", boundaryCatalog, _ =>
+        {
+            sharedExecutions++;
+            Check(RouteThroughOriginalBoundary("clear", boundaryCatalog, __ => recursiveExecutions++));
+        }));
+        Check(sharedExecutions == 1 && recursiveExecutions == 1);
+    }
+
+    private static bool RouteThroughOriginalBoundary(
+        string rawText,
+        IList<CommandDefinition> commands,
+        Action<string> original)
+    {
+        if (!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize(rawText), commands))
+            return false;
+
+        original(rawText);
+        return true;
     }
 
     private static void Check(bool condition)
