@@ -1,11 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Reflection.Emit;
 using Blasphemous.ModdingAPI;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
 using HarmonyLib;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,7 +13,7 @@ namespace Blasphemous.CheatConsoleExtended;
 
 internal static class ConsoleColoring
 {
-    private static readonly Dictionary<Type, bool> subcommandCache = new Dictionary<Type, bool>();
+    private static readonly Dictionary<Type, bool> subcommandCache = [];
     private static ConsoleWidget pendingEchoConsole;
     private static string pendingEchoText;
     private static bool inputColorUpdateInProgress;
@@ -24,12 +24,9 @@ internal static class ConsoleColoring
     public static void SetOutputText(Text text, string message)
     {
         ConsoleTextColorEffect effect = text.GetComponent<ConsoleTextColorEffect>();
-        if (effect != null)
-            effect.enabled = false;
+        effect?.enabled = false;
 
-        ConsoleWidget console;
-        string command;
-        if (TryConsumeCommandEcho(message, out console, out command))
+        if (TryConsumeCommandEcho(message, out ConsoleWidget console, out string command))
         {
             SetCommandEchoText(text, console, command);
             return;
@@ -67,9 +64,7 @@ internal static class ConsoleColoring
             if (text == null)
                 return;
 
-            ConsoleTextColorEffect effect = text.GetComponent<ConsoleTextColorEffect>();
-            if (effect == null)
-                effect = text.gameObject.AddComponent<ConsoleTextColorEffect>();
+            ConsoleTextColorEffect effect = text.GetComponent<ConsoleTextColorEffect>() ?? text.gameObject.AddComponent<ConsoleTextColorEffect>();
             effect.enabled = true;
             effect.Configure(console, input.text, false);
 
@@ -90,7 +85,7 @@ internal static class ConsoleColoring
         pendingEchoConsole = null;
         pendingEchoText = null;
 
-        if (ReferenceEquals(console, null) || console.input == null)
+        if (console is null || console.input == null)
             return;
 
         string input = console.input.text;
@@ -115,8 +110,7 @@ internal static class ConsoleColoring
                 : Main.CheatConsoleExtended.Config.OutputColor,
             MasterConfig.DefaultOutputColor);
 
-        Color color;
-        if (ColorUtility.TryParseHtmlString(value, out color))
+        if (ColorUtility.TryParseHtmlString(value, out Color color))
             return color;
 
         ColorUtility.TryParseHtmlString(MasterConfig.DefaultOutputColor, out color);
@@ -129,9 +123,7 @@ internal static class ConsoleColoring
         text.supportRichText = false;
         text.text = "> " + (command ?? string.Empty);
 
-        ConsoleTextColorEffect effect = text.GetComponent<ConsoleTextColorEffect>();
-        if (effect == null)
-            effect = text.gameObject.AddComponent<ConsoleTextColorEffect>();
+        ConsoleTextColorEffect effect = text.GetComponent<ConsoleTextColorEffect>() ?? text.gameObject.AddComponent<ConsoleTextColorEffect>();
         effect.enabled = true;
         effect.Configure(console, command, true);
     }
@@ -141,7 +133,7 @@ internal static class ConsoleColoring
         console = pendingEchoConsole;
         command = pendingEchoText;
 
-        if (ReferenceEquals(console, null) || command == null || message != "> " + command)
+        if (console is null || command == null || message != "> " + command)
             return false;
 
         EndCommandEcho();
@@ -193,8 +185,7 @@ internal static class ConsoleColoring
         if (tokenIndex < 0)
             return GetOutputColor();
 
-        Color color;
-        if (ColorUtility.TryParseHtmlString(GetTokenColor(tokenIndex, hasSubcommand), out color))
+        if (ColorUtility.TryParseHtmlString(GetTokenColor(tokenIndex, hasSubcommand), out Color color))
             return color;
 
         return GetOutputColor();
@@ -217,7 +208,7 @@ internal static class ConsoleColoring
 
     private static bool HasSubcommand(ConsoleWidget console, string token)
     {
-        if (ReferenceEquals(console, null) || string.IsNullOrEmpty(token))
+        if (console is null || string.IsNullOrEmpty(token))
             return false;
 
         try
@@ -228,15 +219,13 @@ internal static class ConsoleColoring
             if (getCommandFromName == null)
                 return false;
 
-            object[] arguments = { token, null };
+            object[] arguments = [token, null];
             getCommandFromName.Invoke(console, arguments);
-            ConsoleCommand command = arguments[1] as ConsoleCommand;
-            if (command == null)
+            if (arguments[1] is not ConsoleCommand command)
                 return false;
 
             Type type = command.GetType();
-            bool result;
-            if (subcommandCache.TryGetValue(type, out result))
+            if (subcommandCache.TryGetValue(type, out bool result))
                 return result;
 
             MethodInfo execute = type.GetMethod("Execute", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -280,8 +269,7 @@ internal static class ConsoleColoring
 
     private static string GetConfiguredColor(object value, string fallback)
     {
-        string text = value as string;
-        if (text == null || text.Length != 7 || text[0] != '#')
+        if (value is not string text || text.Length != 7 || text[0] != '#')
             return fallback;
 
         for (int i = 1; i < text.Length; i++)
@@ -308,8 +296,7 @@ internal sealed class ConsoleTextColorEffect : MonoBehaviour
         hasSubcommand = ConsoleColoring.HasCommandSubcommand(console, ConsoleColoring.GetFirstToken(this.command));
 
         Text text = GetComponent<Text>();
-        if (text != null)
-            text.SetVerticesDirty();
+        text?.SetVerticesDirty();
     }
 
     public void Apply(VertexHelper vertexHelper)
@@ -326,7 +313,7 @@ internal sealed class ConsoleTextColorEffect : MonoBehaviour
                 ? ConsoleColoring.GetOutputColor()
                 : ConsoleColoring.GetCommandCharacterColor(command, commandIndex, hasSubcommand);
 
-            UIVertex vertex = default(UIVertex);
+            UIVertex vertex = default;
             vertexHelper.PopulateUIVertex(ref vertex, vertexIndex);
             vertex.color = color;
             vertexHelper.SetUIVertex(vertex, vertexIndex);
@@ -334,14 +321,13 @@ internal sealed class ConsoleTextColorEffect : MonoBehaviour
     }
 }
 
-[HarmonyPatch(typeof(Text), "OnPopulateMesh", new[] { typeof(VertexHelper) })]
+[HarmonyPatch(typeof(Text), "OnPopulateMesh", [typeof(VertexHelper)])]
 internal static class Text_OnPopulateMesh_Patch
 {
     public static void Postfix(Text __instance, VertexHelper toFill)
     {
         ConsoleTextColorEffect effect = __instance.GetComponent<ConsoleTextColorEffect>();
-        if (effect != null)
-            effect.Apply(toFill);
+        effect?.Apply(toFill);
     }
 }
 
@@ -391,7 +377,7 @@ internal static class InputField_UpdateLabel_Patch
     public static void Postfix(InputField __instance)
     {
         ConsoleWidget console = __instance.GetComponentInParent<ConsoleWidget>();
-        if (!ReferenceEquals(console, null) && console.input == __instance)
+        if (console is not null && console.input == __instance)
             ConsoleColoring.SetInputText(__instance, console);
     }
 }

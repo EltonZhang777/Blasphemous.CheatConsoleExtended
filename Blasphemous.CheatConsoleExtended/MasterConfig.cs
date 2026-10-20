@@ -43,8 +43,7 @@ internal class MasterConfig
 
     private static string NormalizeColor(object value, string fallback)
     {
-        string text = value as string;
-        if (text == null || text.Length != 7 || text[0] != '#')
+        if (value is not string text || text.Length != 7 || text[0] != '#')
         {
             return fallback;
         }

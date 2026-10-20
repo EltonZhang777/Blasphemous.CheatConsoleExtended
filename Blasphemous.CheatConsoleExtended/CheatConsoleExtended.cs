@@ -1,5 +1,5 @@
-using System;
 using Blasphemous.ModdingAPI;
+using System;
 
 namespace Blasphemous.CheatConsoleExtended;
 
@@ -14,12 +14,7 @@ public class CheatConsoleExtended : BlasMod
     {
         try
         {
-            Config = ConfigHandler.Load<MasterConfig>();
-            if (Config == null)
-            {
-                throw new InvalidOperationException("Configuration is null.");
-            }
-
+            Config = ConfigHandler.Load<MasterConfig>() ?? throw new InvalidOperationException("Configuration is null.");
             Config.Normalize();
         }
         catch (Exception exception)
