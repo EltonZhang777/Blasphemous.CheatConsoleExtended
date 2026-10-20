@@ -58,12 +58,7 @@ internal sealed class ConsoleFontManager
     {
         var installedFontNames = GetInstalledFontNames();
         var configuredFontName = _config.ConsoleFont;
-        var font = TryCreateFont(configuredFontName, installedFontNames, out var resolvedFontName) ?? TryCreateFont(MasterConfig.DefaultConsoleFont, installedFontNames, out resolvedFontName);
-        if (font == null)
-        {
-            font = TryCreateFont(FallbackFontName, installedFontNames, out resolvedFontName);
-        }
-
+        var font = (TryCreateFont(configuredFontName, installedFontNames, out var resolvedFontName) ?? TryCreateFont(MasterConfig.DefaultConsoleFont, installedFontNames, out resolvedFontName)) ?? TryCreateFont(FallbackFontName, installedFontNames, out resolvedFontName);
         if (font == null)
         {
             ModLog.Error("ConsoleFont: no usable installed font was found; keeping the previous font.");

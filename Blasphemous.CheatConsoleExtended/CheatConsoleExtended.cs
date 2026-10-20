@@ -1,7 +1,6 @@
 using Blasphemous.ModdingAPI;
-using System;
-
 using Blasphemous.NewbieEltonLibs.CheatConsole;
+using System;
 
 namespace Blasphemous.CheatConsoleExtended;
 

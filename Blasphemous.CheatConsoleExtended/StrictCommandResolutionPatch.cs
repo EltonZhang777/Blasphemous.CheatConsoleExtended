@@ -139,13 +139,13 @@ internal static class StrictCommandRuntime
     private static IEnumerable<string> GetModSubcommands(ConsoleCommand command)
     {
         if (!string.Equals(command.GetType().FullName, "Blasphemous.CheatConsole.ModCommandSystem", StringComparison.Ordinal))
-            return new string[0];
+            return [];
 
         try
         {
             ModCommand modCommand = TraverseUtils.GetValue<ModCommand>(command, "command");
             if (modCommand == null)
-                return new string[0];
+                return [];
 
             IDictionary availableCommands = TraverseUtils.GetValue<IDictionary>(modCommand, "availableCommands");
             if (availableCommands == null)
@@ -167,7 +167,7 @@ internal static class StrictCommandRuntime
         }
         catch (Exception)
         {
-            return new string[0];
+            return [];
         }
     }
 
