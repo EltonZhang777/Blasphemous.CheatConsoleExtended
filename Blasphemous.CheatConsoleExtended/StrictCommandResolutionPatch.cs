@@ -12,10 +12,13 @@ using Tools.DataContainer;
 
 namespace Blasphemous.CheatConsoleExtended;
 
+/// <summary>Coordinates strict command resolution and dispatch for the vanilla console.</summary>
 internal static class StrictCommandRuntime
 {
     private static readonly Dictionary<string, string[]> VanillaSubcommands = CreateVanillaSubcommands();
 
+    /// <summary>Processes an input line and determines whether the original console handler should continue.</summary>
+    /// <returns><see langword="true"/> when the original handler should run; otherwise, <see langword="false"/>.</returns>
     internal static bool Process(ConsoleWidget console, string rawText)
     {
         string[] tokens = StrictCommandResolver.Tokenize(rawText);
@@ -51,6 +54,8 @@ internal static class StrictCommandRuntime
         return false;
     }
 
+    /// <summary>Finds a shared command by case-insensitive exact ID match.</summary>
+    /// <returns>The matching command, or <see langword="null"/> when none exists.</returns>
     internal static SharedCommand FindSharedCommand(SharedCommands sharedCommands, string id)
     {
         if (sharedCommands == null || string.IsNullOrEmpty(id))
@@ -65,6 +70,7 @@ internal static class StrictCommandRuntime
         return null;
     }
 
+    /// <summary>Builds the command catalog from console commands, built-in commands, and shared commands.</summary>
     private static List<CommandDefinition> CreateCatalog(ConsoleWidget console)
     {
         List<CommandDefinition> catalog = [];
@@ -103,6 +109,7 @@ internal static class StrictCommandRuntime
         return catalog;
     }
 
+    /// <summary>Collects known subcommands for a console command, including applicable mod and shared commands.</summary>
     private static List<string> GetSubcommands(ConsoleCommand command)
     {
         List<string> subcommands = [];
@@ -128,6 +135,7 @@ internal static class StrictCommandRuntime
         return subcommands;
     }
 
+    /// <summary>Gets subcommand names exposed by the mod-command adapter, or an empty list when unavailable.</summary>
     private static IEnumerable<string> GetModSubcommands(ConsoleCommand command)
     {
         if (!string.Equals(command.GetType().FullName, "Blasphemous.CheatConsole.ModCommandSystem", StringComparison.Ordinal))
@@ -163,6 +171,7 @@ internal static class StrictCommandRuntime
         }
     }
 
+    /// <summary>Gets the configured suggestion distance normalized to nonnegative, defaulting to two when configuration is unavailable.</summary>
     private static int GetSuggestionDistance()
     {
         if (Main.CheatConsoleExtended == null || Main.CheatConsoleExtended.Config == null)
@@ -170,6 +179,7 @@ internal static class StrictCommandRuntime
         return StrictCommandResolver.NormalizeDistance(Main.CheatConsoleExtended.Config.CommandSuggestionDistance);
     }
 
+    /// <summary>Writes a formatted suggestion line when suggestions are available.</summary>
     private static void WriteSuggestion(ConsoleWidget console, IList<string> suggestions)
     {
         string line = StrictCommandResolver.FormatSuggestionLine(suggestions);
@@ -177,6 +187,7 @@ internal static class StrictCommandRuntime
             console.Write(line);
     }
 
+    /// <summary>Checks whether a list contains a value using a case-insensitive comparison.</summary>
     private static bool ContainsIgnoreCase(IList<string> values, string value)
     {
         foreach (string item in values)
@@ -187,6 +198,7 @@ internal static class StrictCommandRuntime
         return false;
     }
 
+    /// <summary>Adds nonempty values that are not already present, ignoring case.</summary>
     private static void AddUnique(List<string> target, IEnumerable<string> values)
     {
         if (values == null)
@@ -199,12 +211,14 @@ internal static class StrictCommandRuntime
         }
     }
 
+    /// <summary>Adds a nonempty value when it is not already present, ignoring case.</summary>
     private static void AddUnique(List<string> target, string value)
     {
         if (!string.IsNullOrEmpty(value) && !ContainsIgnoreCase(target, value))
             target.Add(value);
     }
 
+    /// <summary>Creates the known subcommand map for vanilla console commands.</summary>
     private static Dictionary<string, string[]> CreateVanillaSubcommands()
     {
         return new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
@@ -253,18 +267,25 @@ internal static class StrictCommandRuntime
     }
 }
 
+/// <summary>Routes console input through strict command resolution before the vanilla handler runs.</summary>
 [HarmonyPatch(typeof(ConsoleWidget), nameof(ConsoleWidget.ProcessCommand))]
 internal static class ConsoleWidget_ProcessCommand_Patch
 {
+    /// <summary>Handles the input through the strict resolver and controls whether the original method runs.</summary>
+    /// <returns><see langword="true"/> to run the original method; otherwise, <see langword="false"/>.</returns>
     private static bool Prefix(ConsoleWidget __instance, string rawText)
     {
         return StrictCommandRuntime.Process(__instance, rawText);
     }
 }
 
+/// <summary>Replaces shared-command prefix lookup with case-insensitive exact matching.</summary>
 [HarmonyPatch(typeof(SharedCommands), "GetCommandFromName")]
 internal static class SharedCommands_GetCommandFromName_Patch
 {
+    /// <summary>Sets the exact lookup result and suppresses the original shared-command lookup.</summary>
+    /// <param name="__result">Receives the matching command, or <see langword="null"/> if no exact match exists.</param>
+    /// <returns>Always <see langword="false"/> to skip the original method.</returns>
     private static bool Prefix(SharedCommands __instance, string id, ref SharedCommand __result)
     {
         __result = StrictCommandRuntime.FindSharedCommand(__instance, id);

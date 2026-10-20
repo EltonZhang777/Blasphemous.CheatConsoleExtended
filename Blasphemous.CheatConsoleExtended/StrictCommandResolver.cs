@@ -3,12 +3,17 @@ using System.Collections.Generic;
 
 namespace Blasphemous.CheatConsoleExtended;
 
+/// <summary>Describes a command name, its optional executable value, and its supported subcommands.</summary>
 internal sealed class CommandDefinition
 {
+    /// <summary>Creates a command definition with no executable value or subcommands.</summary>
     public CommandDefinition(string name) : this(name, null, null) { }
 
+    /// <summary>Creates a command definition with the specified subcommands and no executable value.</summary>
     public CommandDefinition(string name, IEnumerable<string> subcommands) : this(name, subcommands, null) { }
 
+    /// <summary>Creates a command definition with optional subcommands and an associated executable value.</summary>
+    /// <param name="value">The command object used for dispatch; <see langword="null"/> marks an internal console command.</param>
     internal CommandDefinition(string name, IEnumerable<string> subcommands, object value)
     {
         Name = name;
@@ -25,8 +30,10 @@ internal sealed class CommandDefinition
     public List<string> Subcommands { get; }
 }
 
+/// <summary>Provides exact command matching, dispatch decisions, and edit-distance-based suggestions.</summary>
 internal static class StrictCommandResolver
 {
+    /// <summary>Splits an input line into whitespace-separated tokens after trimming it and removing carriage returns.</summary>
     public static string[] Tokenize(string rawText)
     {
         string text = (rawText ?? string.Empty).Replace("\r", string.Empty).Trim();
@@ -35,6 +42,8 @@ internal static class StrictCommandResolver
             : text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
     }
 
+    /// <summary>Finds the first command whose name exactly matches the token, ignoring case.</summary>
+    /// <returns>The matching command, or <see langword="null"/> when no exact match exists.</returns>
     public static CommandDefinition FindExact(string token, IList<CommandDefinition> commands)
     {
         if (string.IsNullOrEmpty(token) || commands == null)
@@ -49,6 +58,8 @@ internal static class StrictCommandResolver
         return null;
     }
 
+    /// <summary>Determines whether an exact command and, when required, its first subcommand can run.</summary>
+    /// <returns><see langword="true"/> when the vanilla handler should execute the input; otherwise, <see langword="false"/>.</returns>
     public static bool ShouldRunOriginal(string[] tokens, IList<CommandDefinition> commands)
     {
         if (tokens == null || tokens.Length == 0)
@@ -66,6 +77,8 @@ internal static class StrictCommandResolver
             || FindExactSubcommand(command, tokens[1]) != null;
     }
 
+    /// <summary>Determines whether a one-token input exactly names an internal console command.</summary>
+    /// <returns><see langword="true"/> only when the raw input is that single command name, ignoring case.</returns>
     public static bool ShouldProcessInternalCommand(string rawText, string[] tokens, IList<CommandDefinition> commands)
     {
         if (tokens == null || tokens.Length != 1 || !string.Equals(rawText, tokens[0], StringComparison.OrdinalIgnoreCase))
@@ -74,6 +87,7 @@ internal static class StrictCommandResolver
         return IsInternalCommand(tokens[0], commands);
     }
 
+    /// <summary>Checks whether a token names a command represented without an executable value.</summary>
     private static bool IsInternalCommand(string token, IList<CommandDefinition> commands)
     {
         if (string.IsNullOrEmpty(token) || commands == null)
@@ -88,6 +102,9 @@ internal static class StrictCommandResolver
         return false;
     }
 
+    /// <summary>Returns the closest matching top-level command names within the allowed edit distance.</summary>
+    /// <param name="maxDistance">The maximum Damerau-Levenshtein distance; zero disables suggestions.</param>
+    /// <returns>All names tied for the smallest qualifying distance, or an empty list when none qualify.</returns>
     public static List<string> GetSuggestions(string input, IList<CommandDefinition> commands, int maxDistance)
     {
         List<string> suggestions = [];
@@ -96,6 +113,8 @@ internal static class StrictCommandResolver
         return suggestions;
     }
 
+    /// <summary>Finds a subcommand whose name exactly matches the token, ignoring case.</summary>
+    /// <returns>The matching subcommand name, or <see langword="null"/> when no exact match exists.</returns>
     public static string FindExactSubcommand(CommandDefinition command, string token)
     {
         if (command == null || string.IsNullOrEmpty(token))
@@ -110,6 +129,9 @@ internal static class StrictCommandResolver
         return null;
     }
 
+    /// <summary>Returns the closest matching subcommands qualified by their parent command name.</summary>
+    /// <param name="maxDistance">The maximum Damerau-Levenshtein distance; zero disables suggestions.</param>
+    /// <returns>Qualified suggestions tied for the smallest qualifying distance.</returns>
     public static List<string> GetSubcommandSuggestions(CommandDefinition command, string input, int maxDistance)
     {
         List<string> suggestions = [];
@@ -121,6 +143,9 @@ internal static class StrictCommandResolver
         return suggestions;
     }
 
+    /// <summary>Suggests close top-level names and close subcommands beneath those top-level candidates.</summary>
+    /// <param name="maxDistance">The maximum Damerau-Levenshtein distance used at each command level.</param>
+    /// <returns>Top-level names and qualified subcommand suggestions that meet the distance threshold.</returns>
     public static List<string> GetHierarchicalSuggestions(
         string topLevelInput,
         string subcommandInput,
@@ -141,6 +166,7 @@ internal static class StrictCommandResolver
         return suggestions;
     }
 
+    /// <summary>Formats suggestions as a console prompt, or returns <see langword="null"/> when none are available.</summary>
     public static string FormatSuggestionLine(IList<string> suggestions)
     {
         return suggestions == null || suggestions.Count == 0
@@ -148,11 +174,16 @@ internal static class StrictCommandResolver
             : "Did you mean: " + string.Join(", ", ToArray(suggestions)) + "?";
     }
 
+    /// <summary>Clamps a suggestion distance to a nonnegative value.</summary>
+    /// <param name="distance">The configured distance, which may be negative.</param>
+    /// <returns>The distance, or zero when the supplied value is negative.</returns>
     public static int NormalizeDistance(int distance)
     {
         return Math.Max(0, distance);
     }
 
+    /// <summary>Finds all commands tied for the smallest distance within the supplied threshold.</summary>
+    /// <param name="maxDistance">The maximum Damerau-Levenshtein distance; zero disables matching.</param>
     private static List<CommandDefinition> FindNearest(
         string input,
         IList<CommandDefinition> commands,
@@ -185,6 +216,8 @@ internal static class StrictCommandResolver
         return nearest;
     }
 
+    /// <summary>Finds all names tied for the smallest distance within the supplied threshold.</summary>
+    /// <param name="maxDistance">The maximum Damerau-Levenshtein distance; zero disables matching.</param>
     private static List<string> FindNearestNames(string input, IList<string> names, int maxDistance)
     {
         List<string> nearest = [];
@@ -214,6 +247,7 @@ internal static class StrictCommandResolver
         return nearest;
     }
 
+    /// <summary>Computes the case-insensitive, unrestricted Damerau-Levenshtein distance between two strings.</summary>
     private static int DamerauLevenshteinDistance(string left, string right)
     {
         left = left.ToUpperInvariant();
@@ -261,6 +295,7 @@ internal static class StrictCommandResolver
         return distances[left.Length + 1, right.Length + 1];
     }
 
+    /// <summary>Copies a string list into an array.</summary>
     private static string[] ToArray(IList<string> values)
     {
         string[] result = new string[values.Count];
