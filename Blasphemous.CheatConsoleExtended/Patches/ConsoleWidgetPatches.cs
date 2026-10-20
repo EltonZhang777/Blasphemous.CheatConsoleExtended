@@ -21,6 +21,7 @@ internal static class ConsoleColoring
     private static bool inputColorReentryDiagnosticLogged;
     private static bool inputColorCompletionDiagnosticLogged;
 
+    /// <summary>Applies output coloring and preserves a matching pending command echo.</summary>
     public static void SetOutputText(Text text, string message)
     {
         ConsoleTextColorEffect effect = text.GetComponent<ConsoleTextColorEffect>();
@@ -37,6 +38,7 @@ internal static class ConsoleColoring
         text.text = message ?? string.Empty;
     }
 
+    /// <summary>Applies configured role colors to the console input without changing its text.</summary>
     public static void SetInputText(InputField input, ConsoleWidget console)
     {
         if (inputColorUpdateInProgress)
@@ -80,6 +82,7 @@ internal static class ConsoleColoring
         }
     }
 
+    /// <summary>Captures the current input so its submitted command echo can be colored.</summary>
     public static void BeginCommandEcho(ConsoleWidget console)
     {
         pendingEchoConsole = null;
@@ -96,12 +99,14 @@ internal static class ConsoleColoring
         }
     }
 
+    /// <summary>Clears the pending command echo state.</summary>
     public static void EndCommandEcho()
     {
         pendingEchoConsole = null;
         pendingEchoText = null;
     }
 
+    /// <summary>Returns the configured output color, falling back to the default when needed.</summary>
     internal static Color GetOutputColor()
     {
         string value = GetConfiguredColor(
@@ -117,6 +122,7 @@ internal static class ConsoleColoring
         return color;
     }
 
+    /// <summary>Writes a command echo and applies role colors to its command text.</summary>
     private static void SetCommandEchoText(Text text, ConsoleWidget console, string command)
     {
         text.color = Color.white;
@@ -128,6 +134,7 @@ internal static class ConsoleColoring
         effect.Configure(console, command, true);
     }
 
+    /// <summary>Matches a line against the pending echo and returns the captured console and command.</summary>
     private static bool TryConsumeCommandEcho(string message, out ConsoleWidget console, out string command)
     {
         console = pendingEchoConsole;
@@ -140,6 +147,7 @@ internal static class ConsoleColoring
         return true;
     }
 
+    /// <summary>Returns the first space-delimited token after any leading spaces.</summary>
     internal static string GetFirstToken(string command)
     {
         if (string.IsNullOrEmpty(command))
@@ -156,6 +164,7 @@ internal static class ConsoleColoring
         return command.Substring(start, end - start);
     }
 
+    /// <summary>Selects the configured color for a token based on its position and command type.</summary>
     private static string GetTokenColor(int tokenIndex, bool hasSubcommand)
     {
         if (Main.CheatConsoleExtended == null || Main.CheatConsoleExtended.Config == null)
@@ -174,11 +183,13 @@ internal static class ConsoleColoring
         return GetConfiguredColor(Main.CheatConsoleExtended.Config.ParameterColor, MasterConfig.DefaultParameterColor);
     }
 
+    /// <summary>Reports whether the named top-level command uses subcommands.</summary>
     internal static bool HasCommandSubcommand(ConsoleWidget console, string token)
     {
         return HasSubcommand(console, token);
     }
 
+    /// <summary>Returns the color for a command character, using the output color for spaces or invalid indices.</summary>
     internal static Color GetCommandCharacterColor(string command, int characterIndex, bool hasSubcommand)
     {
         int tokenIndex = GetTokenIndex(command, characterIndex);
@@ -191,6 +202,7 @@ internal static class ConsoleColoring
         return GetOutputColor();
     }
 
+    /// <summary>Finds the token containing a character index, or returns -1 for spaces and invalid indices.</summary>
     private static int GetTokenIndex(string command, int characterIndex)
     {
         if (string.IsNullOrEmpty(command) || characterIndex < 0 || characterIndex >= command.Length || command[characterIndex] == ' ')
@@ -206,6 +218,7 @@ internal static class ConsoleColoring
         return tokenIndex;
     }
 
+    /// <summary>Determines whether the resolved command's execution delegates to its subcommand handler.</summary>
     private static bool HasSubcommand(ConsoleWidget console, string token)
     {
         if (console is null || string.IsNullOrEmpty(token))
@@ -242,6 +255,7 @@ internal static class ConsoleColoring
         }
     }
 
+    /// <summary>Checks whether a method body directly calls the specified method.</summary>
     private static bool Calls(MethodInfo method, MethodInfo target)
     {
         if (method == null || target == null || method.GetMethodBody() == null)
@@ -267,6 +281,7 @@ internal static class ConsoleColoring
         return false;
     }
 
+    /// <summary>Returns a valid hexadecimal color in uppercase, or the supplied fallback.</summary>
     private static string GetConfiguredColor(object value, string fallback)
     {
         if (value is not string text || text.Length != 7 || text[0] != '#')
@@ -289,6 +304,7 @@ internal sealed class ConsoleTextColorEffect : MonoBehaviour
     private bool commandEcho;
     private bool hasSubcommand;
 
+    /// <summary>Stores the command display state and invalidates the text mesh for recoloring.</summary>
     public void Configure(ConsoleWidget console, string command, bool commandEcho)
     {
         this.command = command ?? string.Empty;
@@ -299,6 +315,7 @@ internal sealed class ConsoleTextColorEffect : MonoBehaviour
         text?.SetVerticesDirty();
     }
 
+    /// <summary>Assigns vertex colors according to command-token roles and the echo prefix.</summary>
     public void Apply(VertexHelper vertexHelper)
     {
         if (!enabled || !gameObject.activeInHierarchy)
@@ -324,6 +341,7 @@ internal sealed class ConsoleTextColorEffect : MonoBehaviour
 [HarmonyPatch(typeof(Text), "OnPopulateMesh", [typeof(VertexHelper)])]
 internal static class Text_OnPopulateMesh_Patch
 {
+    /// <summary>Applies the attached color effect after Unity populates a text mesh.</summary>
     public static void Postfix(Text __instance, VertexHelper toFill)
     {
         ConsoleTextColorEffect effect = __instance.GetComponent<ConsoleTextColorEffect>();
@@ -334,6 +352,7 @@ internal static class Text_OnPopulateMesh_Patch
 [HarmonyPatch(typeof(ConsoleWidget), "Write")]
 internal static class ConsoleWidget_Write_Patch
 {
+    /// <summary>Routes console text assignments through the output-coloring handler.</summary>
     public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
         MethodInfo setter = AccessTools.PropertySetter(typeof(Text), nameof(Text.text));
@@ -354,16 +373,19 @@ internal static class ConsoleWidget_Write_Patch
 [HarmonyPatch(typeof(ConsoleWidget), "Submit")]
 internal static class ConsoleWidget_Submit_Patch
 {
+    /// <summary>Captures the input before the console writes its command echo.</summary>
     public static void Prefix(ConsoleWidget __instance)
     {
         ConsoleColoring.BeginCommandEcho(__instance);
     }
 
+    /// <summary>Clears pending echo state after a successful console submission.</summary>
     public static void Postfix()
     {
         ConsoleColoring.EndCommandEcho();
     }
 
+    /// <summary>Clears pending echo state after submission and preserves any exception.</summary>
     public static Exception Finalizer(Exception __exception)
     {
         ConsoleColoring.EndCommandEcho();
@@ -374,6 +396,7 @@ internal static class ConsoleWidget_Submit_Patch
 [HarmonyPatch(typeof(InputField), "UpdateLabel")]
 internal static class InputField_UpdateLabel_Patch
 {
+    /// <summary>Applies role colors to the console input after its label is updated.</summary>
     public static void Postfix(InputField __instance)
     {
         ConsoleWidget console = __instance.GetComponentInParent<ConsoleWidget>();
