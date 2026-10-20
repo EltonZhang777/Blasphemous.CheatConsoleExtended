@@ -1,4 +1,5 @@
-﻿using Blasphemous.ModdingAPI;
+using Blasphemous.ModdingAPI;
+using System;
 
 using Blasphemous.NewbieEltonLibs.CheatConsole;
 
@@ -7,6 +8,7 @@ namespace Blasphemous.CheatConsoleExtended;
 public class CheatConsoleExtended : BlasMod
 {
     internal MasterConfig Config { get; private set; }
+    private bool skipConfigSave;
 
     internal ConsoleFontManager ConsoleFont { get; private set; }
 
@@ -14,7 +16,17 @@ public class CheatConsoleExtended : BlasMod
 
     protected override void OnInitialize()
     {
-        Config = ConfigHandler.Load<MasterConfig>() ?? new MasterConfig();
+        try
+        {
+            Config = ConfigHandler.Load<MasterConfig>() ?? throw new InvalidOperationException("Configuration is null.");
+            Config.Normalize();
+        }
+        catch (Exception exception)
+        {
+            Config = MasterConfig.CreateDefault();
+            skipConfigSave = true;
+            ModLog.Warn("Failed to load configuration; using defaults. " + exception.Message, this);
+        }
         ConsoleFont = new ConsoleFontManager(Config);
 
 #if DEBUG
@@ -30,7 +42,10 @@ public class CheatConsoleExtended : BlasMod
 
     internal void SaveConfig()
     {
-        ConfigHandler.Save(Config);
+        if (!skipConfigSave)
+        {
+            ConfigHandler.Save(Config);
+        }
     }
 
     protected override void OnAllInitialized()
