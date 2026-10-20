@@ -1,4 +1,6 @@
+using Blasphemous.CheatConsoleExtended;
 using Blasphemous.ModdingAPI;
+using Gameplay.GameControllers.Penitent;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
 using HarmonyLib;
@@ -9,7 +11,8 @@ using System.Reflection.Emit;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Blasphemous.CheatConsoleExtended;
+namespace Blasphemous.CheatConsoleExtended
+{
 
 internal static class ConsoleColoring
 {
@@ -402,5 +405,145 @@ internal static class InputField_UpdateLabel_Patch
         ConsoleWidget console = __instance.GetComponentInParent<ConsoleWidget>();
         if (console is not null && console.input == __instance)
             ConsoleColoring.SetInputText(__instance, console);
+    }
+}
+}
+
+namespace Blasphemous.CheatConsoleExtended.Patches
+{
+    [HarmonyPatch(typeof(ConsoleWidget), "OnPlayerSpawn", [typeof(Penitent)])]
+    internal static class ConsoleWidget_OnPlayerSpawn_ApplyFont_Patch
+    {
+        /// <summary>Applies the selected font and refreshes console layout after the player spawns.</summary>
+        [HarmonyPostfix]
+        private static void Postfix(ConsoleWidget __instance)
+        {
+            ConsoleFontApplicator.ApplyTo(__instance);
+            ConsoleFontApplicator.RefreshLayout(__instance);
+        }
+    }
+
+    [HarmonyPatch(typeof(ConsoleWidget), "Write", [typeof(string)])]
+    internal static class ConsoleWidget_Write_ApplyFont_Patch
+    {
+        /// <summary>Applies the selected font to the output line just written.</summary>
+        [HarmonyPostfix]
+        private static void Postfix(ConsoleWidget __instance)
+        {
+            ConsoleFontApplicator.ApplyToLatestOutput(__instance);
+        }
+    }
+
+    internal static class ConsoleFontApplicator
+    {
+        /// <summary>Applies the selected font and refreshes layout on the active console.</summary>
+        internal static void ApplyCurrent()
+        {
+            var console = ConsoleWidget.Instance;
+            if (console != null)
+            {
+                ApplyTo(console);
+                RefreshLayout(console);
+            }
+        }
+
+        /// <summary>Applies the selected font to input, placeholder, and existing output.</summary>
+        internal static void ApplyTo(ConsoleWidget console)
+        {
+            var font = GetCurrentFont();
+            if (console == null || font == null)
+            {
+                return;
+            }
+
+            if (console.input != null)
+            {
+                console.input.textComponent?.font = font;
+
+                if (console.input.placeholder != null)
+                {
+                    var placeholderText = console.input.placeholder.GetComponent<Text>();
+                    placeholderText?.font = font;
+                }
+            }
+
+            if (console.content == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < console.content.childCount; i++)
+            {
+                var text = console.content.GetChild(i).GetComponent<Text>();
+                text?.font = font;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            for (var i = 0; i < console.content.childCount; i++)
+            {
+                var text = console.content.GetChild(i).GetComponent<Text>();
+                if (text != null)
+                {
+                    ApplyOutputLayout(text, font);
+                }
+            }
+        }
+
+        /// <summary>Applies the selected font and layout sizing to the latest output line.</summary>
+        internal static void ApplyToLatestOutput(ConsoleWidget console)
+        {
+            var font = GetCurrentFont();
+            if (console == null || font == null || console.content == null || console.content.childCount == 0)
+            {
+                return;
+            }
+
+            var text = console.content.GetChild(console.content.childCount - 1).GetComponent<Text>();
+            if (text != null)
+            {
+                text.font = font;
+                Canvas.ForceUpdateCanvases();
+                ApplyOutputLayout(text, font);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
+            }
+        }
+
+        /// <summary>Preserves a rendered output row's layout height after changing its font.</summary>
+        private static void ApplyOutputLayout(Text text, Font font)
+        {
+            var layoutElement = text.GetComponent<LayoutElement>() ?? text.gameObject.AddComponent<LayoutElement>();
+            var preferredHeight = text.preferredHeight;
+            var lineCount = Mathf.Max(1, text.cachedTextGeneratorForLayout.lineCount);
+            var lineHeight = font.lineHeight / Mathf.Max(1f, text.pixelsPerUnit);
+            var rowHeight = lineHeight > 0f ? lineCount * lineHeight : preferredHeight;
+            if (preferredHeight > rowHeight)
+            {
+                rowHeight = preferredHeight;
+            }
+
+            if (rowHeight > 0f)
+            {
+                layoutElement.preferredHeight = rowHeight;
+            }
+        }
+
+        /// <summary>Rebuilds the active console's output layout after a font change.</summary>
+        internal static void RefreshLayout(ConsoleWidget console)
+        {
+            if (console.content == null)
+            {
+                return;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
+        }
+
+        /// <summary>Gets the font currently selected by the mod's font manager.</summary>
+        private static Font GetCurrentFont()
+        {
+            var mod = Main.CheatConsoleExtended;
+            return mod == null || mod.ConsoleFont == null ? null : mod.ConsoleFont.CurrentFont;
+        }
     }
 }

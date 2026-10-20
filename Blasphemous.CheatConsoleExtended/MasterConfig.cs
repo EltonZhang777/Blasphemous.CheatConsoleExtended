@@ -2,8 +2,12 @@ using System;
 
 namespace Blasphemous.CheatConsoleExtended;
 
-internal class MasterConfig
+internal sealed class MasterConfig
 {
+    internal const string DefaultConsoleFont = "Consolas";
+
+    public string ConsoleFont { get; set; } = DefaultConsoleFont;
+
     public const string DefaultTopLevelCommandColor = "#FFFF55";
     public const string DefaultSubcommandColor = "#00FFFF";
     public const string DefaultParameterColor = "#0088FF";
