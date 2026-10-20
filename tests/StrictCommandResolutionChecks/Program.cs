@@ -70,7 +70,7 @@ internal static class Program
         CommandDefinition audio = StrictCommandResolver.FindExact(commandWithParameter[0], sourceCatalog);
         Check(audio != null && StrictCommandResolver.FindExactSubcommand(audio, commandWithParameter[1]) == "master");
         var normalizedConfig = new MasterConfig { CommandSuggestionDistance = -5 };
-        normalizedConfig.CommandSuggestionDistance = StrictCommandResolver.NormalizeDistance(normalizedConfig.CommandSuggestionDistance);
+        normalizedConfig.Normalize();
         Check(normalizedConfig.CommandSuggestionDistance == 0);
 
         var boundaryCatalog = new List<CommandDefinition>
