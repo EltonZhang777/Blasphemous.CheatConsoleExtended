@@ -4,6 +4,8 @@ namespace Blasphemous.CheatConsoleExtended;
 
 internal sealed class MasterConfig
 {
+    public int CommandSuggestionDistance { get; set; } = 2;
+
     internal const string DefaultConsoleFont = "Consolas";
 
     public string ConsoleFont { get; set; } = DefaultConsoleFont;
@@ -39,6 +41,7 @@ internal sealed class MasterConfig
 
     public void Normalize()
     {
+        CommandSuggestionDistance = StrictCommandResolver.NormalizeDistance(CommandSuggestionDistance);
         TopLevelCommandColor = NormalizeColor(TopLevelCommandColor, DefaultTopLevelCommandColor);
         SubcommandColor = NormalizeColor(SubcommandColor, DefaultSubcommandColor);
         ParameterColor = NormalizeColor(ParameterColor, DefaultParameterColor);

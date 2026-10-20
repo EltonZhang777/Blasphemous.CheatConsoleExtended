@@ -36,9 +36,9 @@ internal static class Help_RenderCommandCatalog_Patch
 
     private static void WriteCatalog(ConsoleWidget console)
     {
-        List<CommandCatalogEntry> vanillaCommands = new List<CommandCatalogEntry>();
-        List<string> sharedCommandIds = new List<string>();
-        List<CommandCatalogEntry> modCommands = new List<CommandCatalogEntry>();
+        List<CommandCatalogEntry> vanillaCommands = [];
+        List<string> sharedCommandIds = [];
+        List<CommandCatalogEntry> modCommands = [];
 
         List<ConsoleCommand> commands = TraverseUtils.GetValue<List<ConsoleCommand>>(
             console,

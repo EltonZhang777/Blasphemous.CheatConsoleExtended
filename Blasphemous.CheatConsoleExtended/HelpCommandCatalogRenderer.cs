@@ -8,7 +8,7 @@ internal sealed class CommandCatalogEntry
 {
     internal CommandCatalogEntry(params string[] names)
     {
-        Names = names == null ? new List<string>() : new List<string>(names);
+        Names = names == null ? [] : [.. names];
     }
 
     internal List<string> Names { get; }
@@ -25,7 +25,7 @@ internal static class HelpCommandCatalogRenderer
         IEnumerable<string> sharedCommandIds,
         IEnumerable<CommandCatalogEntry> modCommands)
     {
-        List<string> lines = new List<string>();
+        List<string> lines = [];
         AppendSection(lines, VanillaHeading, vanillaCommands, false);
         AppendSharedSection(lines, sharedCommandIds);
         AppendSection(lines, ModHeading, modCommands, true);
@@ -36,10 +36,9 @@ internal static class HelpCommandCatalogRenderer
     {
         lines.Add(SharedHeading);
 
-        List<string> sortedCommandIds = (commandIds ?? Enumerable.Empty<string>())
+        List<string> sortedCommandIds = [.. (commandIds ?? [])
             .Where(commandId => !string.IsNullOrEmpty(commandId))
-            .OrderBy(commandId => commandId, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .OrderBy(commandId => commandId, StringComparer.OrdinalIgnoreCase)];
 
         foreach (string commandId in sortedCommandIds)
         {
@@ -60,10 +59,9 @@ internal static class HelpCommandCatalogRenderer
     {
         lines.Add(heading);
 
-        List<CommandCatalogEntry> sortedCommands = (commands ?? Enumerable.Empty<CommandCatalogEntry>())
+        List<CommandCatalogEntry> sortedCommands = [.. (commands ?? [])
             .Where(HasName)
-            .OrderBy(command => command.Names[0], StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .OrderBy(command => command.Names[0], StringComparer.OrdinalIgnoreCase)];
 
         foreach (CommandCatalogEntry command in sortedCommands)
         {
@@ -83,8 +81,11 @@ internal static class HelpCommandCatalogRenderer
 
     private static string Format(CommandCatalogEntry command)
     {
-        List<string> names = new List<string> { command.Names[0] };
-        names.AddRange(command.Names.Skip(1).Where(name => !string.IsNullOrEmpty(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
-        return string.Join(" | ", names.ToArray());
+        List<string> names =
+        [
+            command.Names[0],
+            .. command.Names.Skip(1).Where(name => !string.IsNullOrEmpty(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase),
+        ];
+        return string.Join(" | ", [.. names]);
     }
 }
