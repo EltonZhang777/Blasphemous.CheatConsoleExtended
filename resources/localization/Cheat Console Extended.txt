@@ -1,0 +1,21 @@
+lang: en
+console.ready: Debug console ready to use. Type Help to display the command list.
+
+lang: fr
+console.ready: Console de débogage prête à l'emploi. Tapez Help pour afficher la liste des commandes.
+
+lang: it
+
+lang: de
+
+lang: es
+
+lang: zh
+
+lang: pt-BR
+
+lang: ru
+
+lang: ja
+
+lang: ko

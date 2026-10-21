@@ -15,6 +15,8 @@ public class CheatConsoleExtended : BlasMod
 
     protected override void OnInitialize()
     {
+        LocalizationHandler.RegisterDefaultLanguage("en");
+
         try
         {
             Config = ConfigHandler.Load<MasterConfig>() ?? throw new InvalidOperationException("Configuration is null.");
