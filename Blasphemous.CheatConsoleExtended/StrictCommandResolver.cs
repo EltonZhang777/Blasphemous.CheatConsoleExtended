@@ -208,6 +208,20 @@ internal static class StrictCommandResolver
         return null;
     }
 
+    /// <summary>Finds a command with a supported, zero-argument Help subcommand.</summary>
+    /// <returns>The exact target command when its Help route is safe, or <see langword="null"/> otherwise.</returns>
+    public static CommandDefinition FindSafeHelpCommand(string targetName, IList<CommandDefinition> commands)
+    {
+        CommandDefinition command = FindExact(targetName, commands);
+        if (command == null || command.Value == null || command.ArgumentCounts == null
+            || FindExactSubcommand(command, "help") == null)
+            return null;
+
+        return command.ArgumentCounts.TryGetValue("help", out ArgumentCountRange range) && range.Includes(0)
+            ? command
+            : null;
+    }
+
     /// <summary>Returns the closest matching subcommands qualified by their parent command name.</summary>
     /// <param name="maxDistance">The maximum Damerau-Levenshtein distance; zero disables suggestions.</param>
     /// <returns>Qualified suggestions tied for the smallest qualifying distance.</returns>

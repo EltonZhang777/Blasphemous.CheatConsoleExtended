@@ -71,6 +71,20 @@ internal static class StrictCommandRuntime
         return null;
     }
 
+    /// <summary>Runs only a registered vanilla command's supported, informational Help subcommand.</summary>
+    internal static bool TryShowCommandHelp(ConsoleWidget console, string targetName)
+    {
+        if (console == null)
+            return false;
+
+        CommandDefinition target = StrictCommandResolver.FindSafeHelpCommand(targetName, CreateCatalog(console));
+        if (target == null || target.Value is not ConsoleCommand command)
+            return false;
+
+        command.Execute(target.Name, ["help"]);
+        return true;
+    }
+
     /// <summary>Builds the command catalog from console commands, built-in commands, and shared commands.</summary>
     private static List<CommandDefinition> CreateCatalog(ConsoleWidget console)
     {
@@ -235,8 +249,8 @@ internal static class StrictCommandRuntime
             ["audio"] = ["help", "list", "master", "music", "sfx", "voiceover"],
             ["bonus"] = ["help", "list"],
             ["bossrush"] = ["help", "end", "golast", "hub", "next", "printscore", "start", "unlock"],
-            ["camera"] = ["all", "game", "scene", "ui", "virtual"],
-            ["completion"] = ["base", "get", "show", "ng+"],
+            ["camera"] = ["help", "all", "game", "scene", "ui", "virtual"],
+            ["completion"] = ["help", "base", "get", "show", "ng+"],
             ["graybox"] = ["show", "hide"],
             ["debug"] = ["help", "list", "off", "on"],
             ["show_debug_ui"] = ["help", "current", "off", "on"],
@@ -262,7 +276,7 @@ internal static class StrictCommandRuntime
             ["flaskhealth"] = ["help", "current", "set", "reset", "upgrade", "upgradeto", "fill", "setmax"],
             ["teleport"] = ["help", "list", "go", "showui", "unlock"],
             ["testplan"] = ["help", "1"],
-            ["tutorial"] = ["list", "show"],
+            ["tutorial"] = ["help", "list", "show"],
             ["relic"] = ["help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip"],
             ["questitem"] = ["help", "list", "listowned", "add", "remove"],
             ["collectible"] = ["help", "list", "listowned", "add", "remove"],

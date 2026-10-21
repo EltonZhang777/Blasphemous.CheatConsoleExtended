@@ -16,21 +16,33 @@ internal static class Help_RenderCommandCatalog_Patch
     [HarmonyPrefix]
     private static bool Prefix(Help __instance, string[] parameters)
     {
-        if (parameters != null && parameters.Length > 0)
-        {
-            return true;
-        }
-
         ConsoleWidget console = TraverseUtils.GetValue<ConsoleWidget>(
             __instance,
             "Console",
             TraverseUtils.TraverseAccessType.Property);
-        if (console == null)
+
+        if (parameters == null || parameters.Length == 0)
         {
-            return true;
+            if (console == null)
+            {
+                return true;
+            }
+
+            WriteCatalog(console);
+            return false;
         }
 
-        WriteCatalog(console);
+        if (console == null)
+        {
+            return false;
+        }
+
+        if (parameters.Length == 1 && StrictCommandRuntime.TryShowCommandHelp(console, parameters[0]))
+        {
+            return false;
+        }
+
+        console.Write("Command-specific help is unavailable. Use Help for the full command list.");
         return false;
     }
 

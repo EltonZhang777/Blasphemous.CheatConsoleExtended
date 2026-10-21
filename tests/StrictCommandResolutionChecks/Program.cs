@@ -96,6 +96,9 @@ internal static class Program
             new CommandDefinition("loadmenu", null, new object(), Counts(("", 0, 0))),
             new CommandDefinition("load", null, new object(), Counts(("", 1, 1))),
             new CommandDefinition("help", null, new object(), Counts(("", 0, 1))),
+            new CommandDefinition("invincible", null, new object(), Counts(("", 0, 0))),
+            new CommandDefinition("graybox", new[] { "show", "hide" }, new object(), Counts(("help", 0, 0), ("show", 0, 0), ("hide", 0, 0))),
+            new CommandDefinition("completion", new[] { "help", "base" }, new object(), Counts(("help", 0, 0), ("base", 0, 0))),
             new CommandDefinition("kill", null, new object(), Counts(("", 0, 2))),
             new CommandDefinition("map", new[] { "help", "reveal" }, new object(), Counts(("help", 0, 0), ("reveal", 1, 2))),
             new CommandDefinition("command", new[] { "help", "shared-entry" }, new object(), Counts(("help", 0, 0)), allowUnlistedArgumentCounts: true)
@@ -121,6 +124,11 @@ internal static class Program
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("map reveal"), argumentCountCatalog));
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("map reveal one two three"), argumentCountCatalog));
         Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("command shared-entry arbitrary arguments"), argumentCountCatalog));
+        Check(StrictCommandResolver.FindSafeHelpCommand("HEALTH", argumentCountCatalog).Name == "health");
+        Check(StrictCommandResolver.FindSafeHelpCommand("COMPLETION", argumentCountCatalog).Name == "completion");
+        Check(StrictCommandResolver.FindSafeHelpCommand("invincible", argumentCountCatalog) == null);
+        Check(StrictCommandResolver.FindSafeHelpCommand("graybox", argumentCountCatalog) == null);
+        Check(StrictCommandResolver.FindSafeHelpCommand("help", argumentCountCatalog) == null);
 
         int invalidArgumentOriginalCalls = 0;
         Check(!RouteThroughCommandBoundary("invtest abc def", argumentCountCatalog, _ => { }, _ => invalidArgumentOriginalCalls++));
