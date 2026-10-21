@@ -87,6 +87,47 @@ internal static class Program
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("AUDIO mas"), boundaryCatalog));
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("clear"), boundaryCatalog));
         Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("clear now"), boundaryCatalog));
+
+        var argumentCountCatalog = new List<CommandDefinition>
+        {
+            new CommandDefinition("invtest", null, new object(), Counts(("", 0, 0))),
+            new CommandDefinition("health", new[] { "help", "current", "set" }, new object(), Counts(("help", 0, 0), ("current", 0, 0), ("set", 1, 1))),
+            new CommandDefinition("audio", new[] { "help", "master" }, new object(), Counts(("help", 0, 0), ("master", 1, 1))),
+            new CommandDefinition("loadmenu", null, new object(), Counts(("", 0, 0))),
+            new CommandDefinition("load", null, new object(), Counts(("", 1, 1))),
+            new CommandDefinition("help", null, new object(), Counts(("", 0, 1))),
+            new CommandDefinition("kill", null, new object(), Counts(("", 0, 2))),
+            new CommandDefinition("map", new[] { "help", "reveal" }, new object(), Counts(("help", 0, 0), ("reveal", 1, 2))),
+            new CommandDefinition("command", new[] { "help", "shared-entry" }, new object(), Counts(("help", 0, 0)), allowUnlistedArgumentCounts: true)
+        };
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("INVTEST"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("invtest abc def"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("HEALTH SET 10"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("health set"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("health set 10 extra"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("AuDiO MaStEr 1"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("audio master 1 extra"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("loadmenu"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("loadmenu extra"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("load monastery"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("load"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("help invincible"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("help invincible extra"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("kill player prieudieu"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("kill all extra"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("kill player other"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("MAP REVEAL secret"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("map reveal secret room"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("map reveal"), argumentCountCatalog));
+        Check(!StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("map reveal one two three"), argumentCountCatalog));
+        Check(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("command shared-entry arbitrary arguments"), argumentCountCatalog));
+
+        int invalidArgumentOriginalCalls = 0;
+        Check(!RouteThroughCommandBoundary("invtest abc def", argumentCountCatalog, _ => { }, _ => invalidArgumentOriginalCalls++));
+        Check(invalidArgumentOriginalCalls == 0);
+        int validArgumentOriginalCalls = 0;
+        Check(RouteThroughCommandBoundary("AuDiO MaStEr 1", argumentCountCatalog, _ => { }, _ => validArgumentOriginalCalls++));
+        Check(validArgumentOriginalCalls == 1);
         int internalExecutions = 0;
         int internalOriginalCalls = 0;
         foreach (string name in new[] { "clear", "cls", "mirrorlog" })
@@ -172,6 +213,14 @@ internal static class Program
 
         original(rawText);
         return true;
+    }
+
+    private static Dictionary<string, ArgumentCountRange> Counts(params (string Subcommand, int Minimum, int Maximum)[] rules)
+    {
+        var counts = new Dictionary<string, ArgumentCountRange>(StringComparer.OrdinalIgnoreCase);
+        foreach ((string subcommand, int minimum, int maximum) in rules)
+            counts.Add(subcommand, new ArgumentCountRange(minimum, maximum));
+        return counts;
     }
 
     private static void Check(bool condition)

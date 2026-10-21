@@ -16,6 +16,7 @@ namespace Blasphemous.CheatConsoleExtended;
 internal static class StrictCommandRuntime
 {
     private static readonly Dictionary<string, string[]> VanillaSubcommands = CreateVanillaSubcommands();
+    private static readonly Dictionary<string, Dictionary<string, ArgumentCountRange>> VanillaArgumentCounts = CreateVanillaArgumentCounts();
 
     /// <summary>Processes an input line and determines whether the original console handler should continue.</summary>
     /// <returns><see langword="true"/> when the original handler should run; otherwise, <see langword="false"/>.</returns>
@@ -88,7 +89,13 @@ internal static class StrictCommandRuntime
                     if (string.IsNullOrEmpty(name))
                         continue;
 
-                    catalog.Add(new CommandDefinition(name, subcommands, command));
+                    VanillaArgumentCounts.TryGetValue(name, out Dictionary<string, ArgumentCountRange> argumentCounts);
+                    catalog.Add(new CommandDefinition(
+                        name,
+                        subcommands,
+                        command,
+                        argumentCounts,
+                        string.Equals(name, "command", StringComparison.OrdinalIgnoreCase)));
                 }
             }
         }
@@ -230,6 +237,7 @@ internal static class StrictCommandRuntime
             ["bossrush"] = ["help", "end", "golast", "hub", "next", "printscore", "start", "unlock"],
             ["camera"] = ["all", "game", "scene", "ui", "virtual"],
             ["completion"] = ["base", "get", "show", "ng+"],
+            ["graybox"] = ["show", "hide"],
             ["debug"] = ["help", "list", "off", "on"],
             ["show_debug_ui"] = ["help", "current", "off", "on"],
             ["demake"] = ["help", "enter"],
@@ -264,6 +272,144 @@ internal static class StrictCommandRuntime
             ["key"] = ["help", "list", "add", "remove"],
             ["command"] = ["help", "list", "refresh"]
         };
+    }
+
+    /// <summary>Creates the vanilla command argument counts from each handler's accepted input shapes.</summary>
+    private static Dictionary<string, Dictionary<string, ArgumentCountRange>> CreateVanillaArgumentCounts()
+    {
+        var counts = new Dictionary<string, Dictionary<string, ArgumentCountRange>>(StringComparer.OrdinalIgnoreCase);
+
+        AddArgumentCounts(counts, ["invincible", "fervourrefill", "restart", "maxfervour", "exit"], Exact("", 0));
+        AddArgumentCounts(counts, ["load"], Exact("", 1));
+        AddArgumentCounts(counts, ["loadmenu"], Exact("", 0));
+        AddArgumentCounts(counts, ["loadnoui"], Exact("", 1));
+        AddArgumentCounts(counts, ["execution", "timescale", "showcursor"], Exact("", 1));
+        AddArgumentCounts(counts, ["help"], Range("", 0, 1));
+        AddArgumentCounts(counts, ["sendevent"], Range("", 0, 1));
+        AddArgumentCounts(counts, ["kill"], Range("", 0, 2));
+
+        AddArgumentCounts(counts, ["achievement"],
+            Exact("help", 0), Exact("enablepopup", 0), Exact("disablepopup", 0), Exact("check", 1),
+            Exact("grant", 1), Exact("clear", 1), Exact("clearsteam", 1), Exact("clearall", 0),
+            Exact("clearsteamall", 0), Exact("addprogress", 2), Exact("checkprogress", 1));
+        AddArgumentCounts(counts, ["alms"],
+            Exact("help", 0), Exact("current", 0), Exact("list", 0), Exact("consume", 1), Exact("set", 1));
+        AddArgumentCounts(counts, ["audio"],
+            Exact("help", 0), Exact("list", 0), Exact("master", 1), Exact("music", 1), Exact("sfx", 1), Exact("voiceover", 1));
+        AddArgumentCounts(counts, ["bonus"], Exact("help", 0), Exact("list", 0));
+        AddArgumentCounts(counts, ["bossrush"],
+            Exact("help", 0), Exact("start", 2), Exact("hub", 0), Exact("next", 0), Exact("golast", 0),
+            Exact("end", 0), Exact("printscore", 0), Exact("unlock", 1));
+        AddArgumentCounts(counts, ["camera"],
+            Exact("help", 0), Exact("all", 0), Exact("game", 0), Exact("scene", 0), Exact("ui", 0), Exact("virtual", 0));
+        AddArgumentCounts(counts, ["completion"],
+            Exact("help", 0), Exact("base", 0), Exact("get", 0), Exact("show", 0), Exact("ng+", 0));
+        AddArgumentCounts(counts, ["debug"], Exact("help", 0), Exact("list", 0), Exact("off", 1), Exact("on", 1));
+        AddArgumentCounts(counts, ["show_debug_ui", "showui"],
+            Exact("help", 0), Exact("current", 0), Exact("off", 0), Exact("on", 0));
+        AddArgumentCounts(counts, ["demake"], Exact("help", 0), Exact("enter", 0));
+        AddArgumentCounts(counts, ["dialog"], Exact("help", 0), Exact("list", 0), Exact("start", 1));
+        AddArgumentCounts(counts, ["flag"], Exact("help", 0), Exact("set", 1), Exact("clear", 1), Exact("test", 1));
+        AddArgumentCounts(counts, ["gamemode"], Exact("help", 0), Exact("list", 0), Exact("current", 0), Exact("set", 1));
+        AddArgumentCounts(counts, ["guilt"], Exact("help", 0), Exact("get", 0), Exact("reset", 0), Exact("add", 0));
+        AddArgumentCounts(counts, ["graybox"], Exact("help", 0), Exact("show", 0), Exact("hide", 0));
+        AddArgumentCounts(counts, ["language"], Exact("help", 0), Exact("list", 0), Exact("current", 0), Exact("set", 1));
+        AddArgumentCounts(counts, ["map"],
+            Exact("help", 0), Exact("list", 0), Exact("set", 1), Exact("secrets", 0), Exact("secret", 2),
+            Exact("unrevealed", 0), Range("reveal", 1, 2));
+        AddArgumentCounts(counts, ["miriam"],
+            Exact("help", 0), Exact("status", 0), Exact("start", 0), Exact("end", 0),
+            Exact("activateportal", 0), Exact("deactivateportal", 0), Exact("gotogoal", 0));
+        AddArgumentCounts(counts, ["penitence"],
+            Exact("help", 0), Exact("current", 0), Exact("activate", 1), Exact("deactivate", 0),
+            Exact("abandon", 0), Exact("complete", 0), Exact("listall", 0), Exact("listabandoned", 0), Exact("listcompleted", 0));
+        AddArgumentCounts(counts, ["savegame"],
+            Exact("help", 0), Exact("load", 1), Exact("save", 1), Exact("enablenewgameplus", 0));
+        AddArgumentCounts(counts, ["skill"],
+            Exact("help", 0), Exact("list", 0), Exact("unlock", 1), Exact("unlockall", 0),
+            Exact("lock", 1), Exact("lockall", 0), Exact("showui", 0));
+        AddArgumentCounts(counts, ["skin"],
+            Exact("help", 0), Exact("list", 0), Exact("listunlocked", 0), Exact("get", 0),
+            Exact("set", 1), Exact("unlock", 1), Exact("lock", 1));
+
+        string[] variableStats = ["health", "flask", "fervour", "flaskhealth"];
+        AddArgumentCounts(counts, variableStats,
+            Exact("help", 0), Exact("current", 0), Exact("set", 1), Exact("reset", 0),
+            Exact("upgrade", 0), Exact("upgradeto", 1), Exact("fill", 0), Exact("setmax", 1));
+        AddArgumentCounts(counts, ["purge", "meaculpa", "strength"],
+            Exact("help", 0), Exact("current", 0), Exact("set", 1), Exact("reset", 0),
+            Exact("upgrade", 0), Exact("upgradeto", 1));
+        AddArgumentCounts(counts, ["teleport"],
+            Exact("help", 0), Exact("list", 0), Exact("go", 1), Exact("showui", 0), Exact("unlock", 1));
+        AddArgumentCounts(counts, ["testplan"], Exact("help", 0), Exact("1", 0));
+        AddArgumentCounts(counts, ["tutorial"], Exact("help", 0), Exact("list", 0), Exact("show", 1));
+
+        AddArgumentCounts(counts, ["relic"], InventoryRules(true, true, false, false));
+        AddArgumentCounts(counts, ["questitem", "collectible"], InventoryRules(false, false, false, false));
+        AddArgumentCounts(counts, ["bead"], InventoryRules(true, true, true, false));
+        AddArgumentCounts(counts, ["prayer"], InventoryRules(true, true, false, true));
+        AddArgumentCounts(counts, ["sword"], InventoryRules(true, true, false, false));
+        AddArgumentCounts(counts, ["key"], Exact("help", 0), Exact("list", 0), Exact("add", 1), Exact("remove", 1));
+        AddArgumentCounts(counts, ["invtest"], Exact("", 0));
+        AddArgumentCounts(counts, ["command"], Exact("help", 0), Exact("list", 0), Exact("refresh", 0));
+
+        return counts;
+    }
+
+    /// <summary>Builds the common inventory argument routes, adding alias-specific options where needed.</summary>
+    private static ArgumentCountRule[] InventoryRules(bool supportsEquipment, bool hasEquippedList, bool setSlots, bool decipher)
+    {
+        List<ArgumentCountRule> rules =
+        [
+            Exact("help", 0), Exact("list", 0), Exact("listowned", 0), Exact("add", 1), Exact("remove", 1)
+        ];
+        if (supportsEquipment)
+        {
+            rules.Add(Exact("equip", 2));
+            rules.Add(Exact("unequip", 1));
+        }
+        if (hasEquippedList)
+            rules.Add(Exact("equiped", 0));
+        if (setSlots)
+            rules.Add(Exact("setslots", 1));
+        if (decipher)
+            rules.Add(Exact("decipher", 2));
+        return rules.ToArray();
+    }
+
+    /// <summary>Adds the supplied argument routes for one or more vanilla command aliases.</summary>
+    private static void AddArgumentCounts(
+        Dictionary<string, Dictionary<string, ArgumentCountRange>> target,
+        string[] commandNames,
+        params ArgumentCountRule[] rules)
+    {
+        foreach (string commandName in commandNames)
+        {
+            var counts = new Dictionary<string, ArgumentCountRange>(StringComparer.OrdinalIgnoreCase);
+            foreach (ArgumentCountRule rule in rules)
+                counts.Add(rule.Route, new ArgumentCountRange(rule.Minimum, rule.Maximum));
+            target.Add(commandName, counts);
+        }
+    }
+
+    private static ArgumentCountRule Exact(string route, int count) => new(route, count, count);
+
+    private static ArgumentCountRule Range(string route, int minimum, int maximum) => new(route, minimum, maximum);
+
+    private sealed class ArgumentCountRule
+    {
+        public ArgumentCountRule(string route, int minimum, int maximum)
+        {
+            Route = route;
+            Minimum = minimum;
+            Maximum = maximum;
+        }
+
+        public string Route { get; }
+
+        public int Minimum { get; }
+
+        public int Maximum { get; }
     }
 }
 
