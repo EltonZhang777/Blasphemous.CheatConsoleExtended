@@ -127,6 +127,22 @@ public sealed class StrictCommandResolverTests
     }
 
     [Fact]
+    public void ValidatesTopLevelAndSubcommandArgumentCounts()
+    {
+        List<CommandDefinition> commands = new List<CommandDefinition>
+        {
+            new CommandDefinition("invtest", null, new object(), Counts(("", 0, 0))),
+            new CommandDefinition("health", new[] { "help", "current", "set" }, new object(), Counts(("help", 0, 0), ("current", 0, 0), ("set", 1, 1)))
+        };
+
+        Assert.True(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("INVTEST"), commands));
+        Assert.False(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("invtest abc def"), commands));
+        Assert.True(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("HEALTH SET 10"), commands));
+        Assert.False(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("health set"), commands));
+        Assert.False(StrictCommandResolver.ShouldRunOriginal(StrictCommandResolver.Tokenize("health set 10 extra"), commands));
+    }
+
+    [Fact]
     public void FindsOnlyCommandsWithSafeHelpRoutes()
     {
         List<CommandDefinition> commands = new List<CommandDefinition>
