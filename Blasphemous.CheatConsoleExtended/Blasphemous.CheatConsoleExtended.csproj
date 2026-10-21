@@ -31,7 +31,11 @@
     <PackageReference Include="Blasphemous.NewbieEltonLibs" Version="$(NewbieEltonLibsVersion)" />
   </ItemGroup>
 
-  <Target Name="Development" AfterTargets="PostBuildEvent">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Blasphemous.CheatConsoleExtended.Tests" />
+  </ItemGroup>
+
+  <Target Name="Development" AfterTargets="PostBuildEvent" Condition="'$(SkipGameProfileDeployment)' != 'true'">
 
     <!-- Get plugin & resources -->
     <ItemGroup>

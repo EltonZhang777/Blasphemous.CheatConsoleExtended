@@ -1,21 +1,12 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
+using Xunit;
 
-namespace Blasphemous.CheatConsoleExtended;
+namespace Blasphemous.CheatConsoleExtended.Tests;
 
-internal static class Program
+public sealed class HelpCommandCatalogRendererTests
 {
-    private static int Main()
-    {
-        AssertCatalogWithCommands();
-        AssertSharedRefreshSnapshot();
-        AssertEmptyModSection();
-        Console.WriteLine("Help command catalog self-check passed.");
-        return 0;
-    }
-
-    private static void AssertCatalogWithCommands()
+    [Fact]
+    public void RendersSortedVanillaSharedAndModCommands()
     {
         List<string> lines = HelpCommandCatalogRenderer.Render(
             new[]
@@ -44,8 +35,8 @@ internal static class Program
                 new CommandCatalogEntry("duplicate")
             });
 
-        AssertSequence(
-            lines,
+        Assert.Equal(new[]
+        {
             "All vanilla commands (command aliases separated by | sign):",
             "\talpha",
             "\tBravo",
@@ -64,79 +55,58 @@ internal static class Program
             "All mod commands (command aliases separated by | sign):",
             "\talphaMod",
             "\tduplicate",
-            "\tZuluMod");
+            "\tZuluMod"
+        }, lines);
     }
 
-    private static void AssertSharedRefreshSnapshot()
+    [Fact]
+    public void RendersFreshSnapshotOfSharedCommandIds()
     {
         List<string> sharedCommandIds = new List<string> { "old-shared" };
         List<string> beforeRefresh = HelpCommandCatalogRenderer.Render(
-            new CommandCatalogEntry[0],
-            sharedCommandIds,
-            new CommandCatalogEntry[0]);
-        AssertSequence(
-            beforeRefresh,
+            new CommandCatalogEntry[0], sharedCommandIds, new CommandCatalogEntry[0]);
+
+        Assert.Equal(new[]
+        {
             "All vanilla commands (command aliases separated by | sign):",
             "All shared commands (script IDs):",
             "\told-shared",
             "All mod commands (command aliases separated by | sign):",
-            "\tNo mod commands registered!");
+            "\tNo mod commands registered!"
+        }, beforeRefresh);
 
         sharedCommandIds.Clear();
         sharedCommandIds.Add("new-shared");
         List<string> afterRefresh = HelpCommandCatalogRenderer.Render(
-            new CommandCatalogEntry[0],
-            sharedCommandIds,
-            new CommandCatalogEntry[0]);
-        AssertSequence(
-            afterRefresh,
+            new CommandCatalogEntry[0], sharedCommandIds, new CommandCatalogEntry[0]);
+        Assert.Equal(new[]
+        {
             "All vanilla commands (command aliases separated by | sign):",
             "All shared commands (script IDs):",
             "\tnew-shared",
             "All mod commands (command aliases separated by | sign):",
-            "\tNo mod commands registered!");
-
-        if (afterRefresh.Contains("\told-shared"))
-        {
-            throw new InvalidOperationException("Refreshed catalog retained an old shared command ID.");
-        }
+            "\tNo mod commands registered!"
+        }, afterRefresh);
+        Assert.DoesNotContain("\told-shared", afterRefresh);
     }
 
-    private static void AssertEmptyModSection()
+    [Fact]
+    public void ShowsEmptySectionMessagesWithoutBlankLines()
     {
         List<string> lines = HelpCommandCatalogRenderer.Render(
             new[] { new CommandCatalogEntry("command") },
             new string[0],
             new CommandCatalogEntry[0]);
 
-        AssertSequence(
-            lines,
+        Assert.Equal(new[]
+        {
             "All vanilla commands (command aliases separated by | sign):",
             "\tcommand",
             "All shared commands (script IDs):",
             "\tNo shared commands loaded!",
             "All mod commands (command aliases separated by | sign):",
-            "\tNo mod commands registered!");
-
-        if (lines.Any(string.IsNullOrEmpty))
-        {
-            throw new InvalidOperationException("Catalog contains an empty line.");
-        }
-    }
-
-    private static void AssertSequence(IList<string> actual, params string[] expected)
-    {
-        if (actual.Count != expected.Length)
-        {
-            throw new InvalidOperationException($"Expected {expected.Length} lines, got {actual.Count}.");
-        }
-
-        for (int i = 0; i < expected.Length; i++)
-        {
-            if (actual[i] != expected[i])
-            {
-                throw new InvalidOperationException($"Line {i} differs: expected '{expected[i]}', got '{actual[i]}'.");
-            }
-        }
+            "\tNo mod commands registered!"
+        }, lines);
+        Assert.DoesNotContain(lines, string.IsNullOrEmpty);
     }
 }
