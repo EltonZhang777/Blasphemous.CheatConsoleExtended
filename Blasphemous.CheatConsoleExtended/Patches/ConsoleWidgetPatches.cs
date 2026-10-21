@@ -5,6 +5,7 @@ using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
 using HarmonyLib;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -411,6 +412,51 @@ namespace Blasphemous.CheatConsoleExtended
 
 namespace Blasphemous.CheatConsoleExtended.Patches
 {
+    [HarmonyPatch(typeof(ConsoleWidget), "SetEnabled")]
+    internal static class ConsoleWidget_SetEnabled_Async_Patch
+    {
+        private static readonly HashSet<ConsoleWidget> pendingOpens = [];
+        private static readonly HashSet<ConsoleWidget> invokingOriginal = [];
+
+        [HarmonyPrefix]
+        private static bool Prefix(ConsoleWidget __instance, bool enabled)
+        {
+            if (invokingOriginal.Contains(__instance))
+                return true;
+
+            if (!enabled)
+            {
+                pendingOpens.Remove(__instance);
+                return true;
+            }
+
+            if (!pendingOpens.Add(__instance))
+                return false;
+
+            __instance.StartCoroutine(OpenNextFrame(__instance));
+            return false;
+        }
+
+        private static IEnumerator OpenNextFrame(ConsoleWidget console)
+        {
+            // shortcut: activation still runs on Unity's main thread; split it only if the in-game check still stalls.
+            yield return null;
+
+            if (!pendingOpens.Remove(console) || console == null)
+                yield break;
+
+            invokingOriginal.Add(console);
+            try
+            {
+                console.SetEnabled(true);
+            }
+            finally
+            {
+                invokingOriginal.Remove(console);
+            }
+        }
+    }
+
     [HarmonyPatch(typeof(ConsoleWidget), "OnPlayerSpawn", [typeof(Penitent)])]
     internal static class ConsoleWidget_OnPlayerSpawn_ApplyFont_Patch
     {
