@@ -1,4 +1,5 @@
 using Blasphemous.CheatConsole;
+using Blasphemous.CheatConsoleExtended.Patches;
 using Blasphemous.NewbieEltonLibs.Extensions.GameLibs;
 using Framework.FrameworkCore;
 using Framework.Managers;
@@ -8,6 +9,7 @@ using HarmonyLib;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using Tools.DataContainer;
 
 namespace Blasphemous.CheatConsoleExtended;
@@ -273,9 +275,43 @@ internal static class ConsoleWidget_ProcessCommand_Patch
 {
     /// <summary>Handles the input through the strict resolver and controls whether the original method runs.</summary>
     /// <returns><see langword="true"/> to run the original method; otherwise, <see langword="false"/>.</returns>
-    private static bool Prefix(ConsoleWidget __instance, string rawText)
+    private static bool Prefix(ConsoleWidget __instance, string rawText, out int __state)
     {
-        return StrictCommandRuntime.Process(__instance, rawText);
+        if (!CheatConsoleController.BeginCommandExecution(__instance, out __state))
+        {
+            CheatConsoleController.EndCommandExecution(__state);
+            return false;
+        }
+
+        try
+        {
+            bool runOriginal = StrictCommandRuntime.Process(__instance, rawText);
+            if (!runOriginal)
+                CheatConsoleController.EndCommandExecution(__state);
+            return runOriginal;
+        }
+        catch
+        {
+            CheatConsoleController.EndCommandExecution(__state);
+            throw;
+        }
+    }
+
+    private static Exception Finalizer(Exception __exception, int __state)
+    {
+        CheatConsoleController.EndCommandExecution(__state);
+        return __exception;
+    }
+
+    private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        MethodInfo execute = AccessTools.Method(typeof(ConsoleCommand), nameof(ConsoleCommand.Execute), [typeof(string), typeof(string[])]);
+        MethodInfo executeFromParser = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.ExecuteConsoleCommandFromParser));
+        instructions = ConsoleWidget_PlayerInputCallSite.ReplaceCalls(instructions, execute, executeFromParser, "ConsoleWidget.ProcessCommand ConsoleCommand.Execute", 3);
+
+        MethodInfo sharedCommand = AccessTools.Method(typeof(SharedCommandsCommand), nameof(SharedCommandsCommand.ExecuteIfIsCommand), [typeof(string)]);
+        MethodInfo executeSharedCommand = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.ExecuteSharedCommandFromParser));
+        return ConsoleWidget_PlayerInputCallSite.ReplaceCalls(instructions, sharedCommand, executeSharedCommand, "ConsoleWidget.ProcessCommand SharedCommandsCommand.ExecuteIfIsCommand", 1);
     }
 }
 

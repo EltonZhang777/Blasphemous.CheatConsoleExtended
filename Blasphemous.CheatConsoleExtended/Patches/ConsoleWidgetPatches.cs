@@ -377,9 +377,17 @@ namespace Blasphemous.CheatConsoleExtended
     internal static class ConsoleWidget_Submit_Patch
     {
         /// <summary>Captures the input before the console writes its command echo.</summary>
-        public static void Prefix(ConsoleWidget __instance)
+        public static bool Prefix(ConsoleWidget __instance, out int __state)
         {
+            if (!CheatConsoleController.BeginPlayerSubmission(__instance, out __state))
+            {
+                CheatConsoleController.EndPlayerSubmission(__state);
+                ConsoleColoring.EndCommandEcho();
+                return false;
+            }
+
             ConsoleColoring.BeginCommandEcho(__instance);
+            return true;
         }
 
         /// <summary>Clears pending echo state after a successful console submission.</summary>
@@ -389,10 +397,18 @@ namespace Blasphemous.CheatConsoleExtended
         }
 
         /// <summary>Clears pending echo state after submission and preserves any exception.</summary>
-        public static Exception Finalizer(Exception __exception)
+        public static Exception Finalizer(Exception __exception, int __state)
         {
             ConsoleColoring.EndCommandEcho();
+            CheatConsoleController.EndPlayerSubmission(__state);
             return __exception;
+        }
+
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "ProcessCommand", [typeof(string)]);
+            MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.ProcessCommandFromSubmit));
+            return Patches.ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(instructions, target, replacement, "ConsoleWidget.Submit ProcessCommand");
         }
     }
 
@@ -431,6 +447,20 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         private static void Postfix(ConsoleWidget __instance)
         {
             ConsoleFontApplicator.ApplyToLatestOutput(__instance);
+        }
+    }
+
+    [HarmonyPatch(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)])]
+    internal static class ConsoleWidget_SetEnabled_ApplyFont_Patch
+    {
+        [HarmonyPostfix]
+        private static void Postfix(ConsoleWidget __instance)
+        {
+            if (__instance.IsEnabled())
+            {
+                ConsoleFontApplicator.ApplyTo(__instance);
+                ConsoleFontApplicator.RefreshLayout(__instance);
+            }
         }
     }
 
@@ -544,6 +574,95 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         {
             var mod = Main.CheatConsoleExtended;
             return mod == null || mod.ConsoleFont == null ? null : mod.ConsoleFont.CurrentFont;
+        }
+    }
+
+    [HarmonyPatch(typeof(ConsoleWidget), "Update")]
+    internal static class ConsoleWidget_Update_PlayerAccess_Patch
+    {
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)]);
+            MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SetEnabledFromPlayerInput));
+            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(instructions, target, replacement, "ConsoleWidget.Update SetEnabled");
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class CheatConsoleConfiguredHotkey_PlayerAccess_Patch
+    {
+        private static MethodBase TargetMethod()
+        {
+            Type patchType = AccessTools.TypeByName("Blasphemous.CheatConsole.ConsoleWidget_Update_Patch");
+            if (patchType == null)
+                throw new TypeLoadException("Blasphemous.CheatConsole.ConsoleWidget_Update_Patch was not found.");
+
+            return AccessTools.Method(patchType, "Postfix", [typeof(ConsoleWidget), typeof(bool)])
+                ?? throw new MissingMethodException(patchType.FullName, "Postfix");
+        }
+
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)]);
+            MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SetEnabledFromPlayerInput));
+            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(instructions, target, replacement, "CheatConsole configured hotkey SetEnabled");
+        }
+    }
+
+    [HarmonyPatch(typeof(ConsoleWidget), "CheckConsoleKeys")]
+    internal static class ConsoleWidget_CheckConsoleKeys_PlayerAccess_Patch
+    {
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "Submit");
+            MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SubmitFromPlayerInput));
+            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(instructions, target, replacement, "ConsoleWidget.CheckConsoleKeys Submit");
+        }
+    }
+
+    [HarmonyPatch(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)])]
+    internal static class ConsoleWidget_SetEnabled_AccessPolicy_Patch
+    {
+        [HarmonyPrefix]
+        private static bool Prefix(bool enabled)
+        {
+            return CheatConsoleController.CanSetConsoleOpen(enabled);
+        }
+    }
+
+    internal static class ConsoleWidget_PlayerInputCallSite
+    {
+        internal static IEnumerable<CodeInstruction> ReplaceSingleCall(
+            IEnumerable<CodeInstruction> instructions,
+            MethodInfo target,
+            MethodInfo replacement,
+            string callSite)
+        {
+            return ReplaceCalls(instructions, target, replacement, callSite, 1);
+        }
+
+        internal static IEnumerable<CodeInstruction> ReplaceCalls(
+            IEnumerable<CodeInstruction> instructions,
+            MethodInfo target,
+            MethodInfo replacement,
+            string callSite,
+            int expectedMatches)
+        {
+            int matches = 0;
+            foreach (CodeInstruction instruction in instructions)
+            {
+                if (instruction.operand is MethodInfo method && method == target)
+                {
+                    matches++;
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = replacement;
+                }
+
+                yield return instruction;
+            }
+
+            if (matches != expectedMatches)
+                throw new InvalidOperationException($"Expected {expectedMatches} {callSite} calls, found {matches}.");
         }
     }
 }
