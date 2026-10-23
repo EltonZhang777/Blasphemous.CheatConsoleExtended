@@ -1,8 +1,423 @@
 lang: en
-console.ready: Debug console ready to use. Type Help to display the command list.
+vanilla.invincible: Player invulnerability: {0}
+vanilla.fervourrefill: Fervour Refill: {0}
+vanilla.kill.help.invalid_parameters: Invalid parameters. Available kill commands are:
+vanilla.kill.help.player: kill player: Kill player
+vanilla.kill.help.player.prieudieu: kill player prieudieu: Kill player and force to respawn in prieudieu
+vanilla.kill.help.all: kill all: Kill all entities
+vanilla.kill.help.enemies: kill enemies: Kill all entities
+vanilla.kill.help.name: kill NAME: Kill entity with name NAME
+vanilla.kill.all.killing_everybody: Killing everybody on the scene.
+vanilla.kill.enemies.killing_every_enemy: Killing every enemy on the scene.
+vanilla.kill.name.killing_entity: Killing entity: {0}
+vanilla.help.available_commands: Available commands:
+vanilla.help.usage.command: Use help COMMAND to get help
+vanilla.restart.reloading_current_level: Reloading current level...
+vanilla.language.help: Available LANGUAGE commands:
+vanilla.language.help.list: language list: List all available languages
+vanilla.language.help.current: language current: Show the current language
+vanilla.language.help.set: language set LANGUAGE_CODE: Sets the language
+vanilla.language.list.available_languages: The available languages are:
+vanilla.common.language_tutorial.list.entry: {0}: {1}
+vanilla.language.current.value_and_code: The current language is {0} with code {1}
+vanilla.language.set.error.unsupported_code: language set: Language code {0} not supported, use language list
+vanilla.language.set.success: Language setted
+vanilla.language.error.unknown_subcommand: Command unknow, use language help
+vanilla.invtest.adding_all_items: Adding all items:
+vanilla.relic.help: Available RELIC commands:
+vanilla.relic.help.list: relic list: List all relics
+vanilla.relic.help.listowned: relic listowned: List all relics owned by player
+vanilla.relic.help.add: relic add [IDRELIC|all]: Add a relic (or all)
+vanilla.relic.help.remove: relic remove [IDRELIC|all]: Remove the relic (or all)
+vanilla.relic.help.equiped: relic equiped: Show the eqquiped relics
+vanilla.relic.help.equip: relic equip IDRELIC SLOT: Equip the relic in the slot
+vanilla.relic.help.unequip: relic unequip SLOT: Unequip the relic in the slot
+vanilla.relic.list.all_caption: All relics:
+vanilla.relic.listowned.owned_caption: Owned relics:
+vanilla.relic.add.all_started: Adding all relics
+vanilla.relic.remove.all_started: Removing all relics
+vanilla.relic.equiped.slots_header: Relics slots
+vanilla.common.inventory_slots.item: Slot {0}: {1}  - {2}
+vanilla.common.inventory_slots.empty: Slot {0}: empty
+vanilla.common.relic_sword.error.unknown_subcommand: Command unknow, use relic help
+vanilla.questitem.help: Available QUEST ITEM commands:
+vanilla.questitem.help.list: questitem list: List all quest items
+vanilla.questitem.help.listowned: questitem listowned: List all quest items owned by player
+vanilla.questitem.help.add: questitem add [IDQUESTITEM|all]: Add a quest item (or all)
+vanilla.questitem.help.remove: questitem remove [IDQUESTITEM|all]: Remove the quest item (or all)
+vanilla.questitem.list.all_caption: All quest items:
+vanilla.questitem.listowned.owned_caption: Owned quest items:
+vanilla.questitem.add.all_started: Adding all quest items
+vanilla.questitem.remove.all_started: Removing all quest items
+vanilla.questitem.error.unknown_subcommand: Command unknow, use questitem help
+vanilla.collectible.help: Available COLLECTIBLE commands:
+vanilla.collectible.help.list: collectible list: List all collectible items
+vanilla.collectible.help.listowned: collectible listowned: List all collectible items owned by player
+vanilla.collectible.help.add: collectible add [IDCOLLECTIBLEITEM|all]: Add a collectible item (or all)
+vanilla.collectible.help.remove: collectible remove [IDCOLLECTIBLEITEM|all]: Remove the collectible item (or all)
+vanilla.collectible.list.all_caption: All collectible items:
+vanilla.collectible.listowned.owned_caption: Owned collectible items:
+vanilla.collectible.add.all_started: Adding all collectibles
+vanilla.collectible.remove.all_started: Removing all collectibles
+vanilla.collectible.error.unknown_subcommand: Command unknow, use collectible help
+vanilla.key.help: Available KEY commands:
+vanilla.key.help.list: key list: List all key status
+vanilla.key.help.add: key add [idx|all]: Add the idx key (or all)
+vanilla.key.help.remove: key remove [idx|all]: Remove the idx key (or all)
+vanilla.key.list.header: Keys:
+vanilla.key.list.slot: Slot {0}: {1}
+vanilla.key.add.all_started: Adding all Boss Keys
+vanilla.key.add.success: BossKey added
+vanilla.key.remove.all_started: Removing all Boss Keys
+vanilla.key.remove.success: BossKey removed
+vanilla.key.error.unknown_subcommand: Command unknow, use key help
+vanilla.bead.help: Available BEADS commands:
+vanilla.bead.help.list: bead list: List all beads
+vanilla.bead.help.listowned: bead listowned: List all beads owned by player
+vanilla.bead.help.setslots: bead setslots SLOTS: Sets the beads slots
+vanilla.bead.help.add: bead add [IDBEAD|all]: Add a bead (or all)
+vanilla.bead.help.remove: bead remove [IDBEAD|all]: Remove the bead (or all)
+vanilla.bead.help.equiped: bead equiped: List the eqquiped beads
+vanilla.bead.help.equip: bead equip IDBEAD SLOT: Equip the bead in the slot
+vanilla.bead.help.unequip: bead unequip SLOT: Unequip the bead in the slot
+vanilla.bead.list.all_caption: All beads:
+vanilla.bead.listowned.owned_caption: Owned beads:
+vanilla.bead.add.all_started: Adding all rosary beads
+vanilla.bead.remove.all_started: Removing all rosary beads
+vanilla.bead.equiped.slots_header: Rosary Beads slots
+vanilla.bead.error.unknown_subcommand: Command unknow, use bead help
+vanilla.sword.help: Available SWORD commands:
+vanilla.sword.help.list: sword list: List all sword
+vanilla.sword.help.listowned: sword listowned: List all sword owned by player
+vanilla.sword.help.add: sword add [IDSWORD|all]: Add a sword (or all)
+vanilla.sword.help.remove: sword remove [IDSWORD|all]: Remove the sword (or all)
+vanilla.sword.help.equiped: sword equiped: Show the eqquiped swords
+vanilla.sword.help.equip: sword equip IDSWORD SLOT: Equip the sword in the slot
+vanilla.sword.help.unequip: sword unequip SLOT: Unequip the sword in the slot
+vanilla.sword.list.all_caption: All swords:
+vanilla.sword.listowned.owned_caption: Owned swords:
+vanilla.sword.add.all_started: Adding all swords
+vanilla.sword.remove.all_started: Removing all swords
+vanilla.sword.equiped.slots_header: Sword slots
+vanilla.prayer.help: Available PRAYER commands:
+vanilla.prayer.help.list: prayer list: List all prayers
+vanilla.prayer.help.listowned: prayer listowned: List all prayers owned by player
+vanilla.prayer.help.add: prayer add [IDPRAYER|all]: Add a prayer (or all)
+vanilla.prayer.help.remove: prayer remove [IDPRAYER|all]: Remove the prayer (or all)
+vanilla.prayer.help.equiped: prayer equiped: List the eqquiped prayers
+vanilla.prayer.help.equip: prayer equip IDPRAYER SLOT: Equip the prayer
+vanilla.prayer.help.unequip: prayer unequip SLOT: Unequip the prayer type
+vanilla.prayer.help.decipher: prayer decipher IDPRAYER NUMBER: Add decipher
+vanilla.prayer.list.all_caption: All prayers:
+vanilla.prayer.listowned.owned_caption: Owned prayers:
+vanilla.prayer.add.all_started: Adding all prayers
+vanilla.prayer.remove.all_started: Removing all prayers
+vanilla.prayer.equiped.slots_header: Prayer slots
+vanilla.prayer.error.unknown_subcommand: Command unknow, use prayer help
+vanilla.prayer.error.invalid_type: The prayer type must be hymn, lament, or thanks
+vanilla.common.inventory_dialog.list.entry: {0} - {1}
+vanilla.common.inventory.error.invalid_id: {0} is not a valid {1} ID, please use list subcommand
+vanilla.common.commands.help.available: Available {0} commands:
+vanilla.common.stats.help.current: {0} current: Show current value
+vanilla.common.stats.help.set: {0} set VALUE: Set current value
+vanilla.common.stats.help.reset: {0} reset: Reset the upgrades
+vanilla.common.stats.help.upgrade: {0} upgrade: Upgrade stat
+vanilla.common.stats.help.upgradeto: {0} upgradeto VALUE: Upgrade stat until final value is less that NUMBER
+vanilla.common.stats.help.fill: {0} fill: Fill to max value
+vanilla.common.stats.help.setmax: {0} setmax VALUE: Set max value
+vanilla.common.stats.current.value: Current: {0} (perma:{1})
+vanilla.common.stats.upgrade.result: Upgraded, new value: {0} (perma:{1})
+vanilla.common.stats.reset.result: Reset, new value: {0} (perma:{1})
+vanilla.common.stats_bonus.error.unknown_subcommand: Command unknow, use {0} help
+vanilla.common.stats.current.value_with_maxima: Current: {0}, ATTR_MAX:{1} (perma:{2}), MAX:{3}
+vanilla.bonus.help.description: {0} help: Show this help
+vanilla.bonus.help.list: {0} list: List all bonuses
+vanilla.bonus.list.header: Current bonuses:
+vanilla.bonus.list.stat: {0} stat, permanet {1}
+vanilla.bonus.list.base_multiplier: ...Base:{0}  Multyplier:{1}
+vanilla.sendevent.event.sending: Sending event: {0}
+vanilla.dialog.help: Available DIALOG commands:
+vanilla.dialog.help.list: dialog list: List all dialogs
+vanilla.dialog.help.start: dialog start IDDIALOG: Start a dialog
+vanilla.dialog.list.header: All dialogs ID:
+vanilla.dialog.error.unknown_subcommand: Command unknow, use dialog help
+vanilla.graybox.error.invalid_parameters: Invalid parameters. Type help for more information.
+vanilla.graybox.showing: Graybox is now showing.
+vanilla.graybox.hiding: Graybox is now hidding.
+vanilla.savegame.help: Available SAVEGAME commands:
+vanilla.savegame.help.load: savegame load SLOT: Loads the current game to slot
+vanilla.savegame.help.save: savegame save SLOT: Save the current game to slot
+vanilla.savegame.help.enablenewgameplus: savegame enablenewgameplus: Enable new game plus in this slot.
+vanilla.savegame.load.error.slot_not_found: Slot {0} not found
+vanilla.savegame.error.unknown_subcommand: Command unknow, use savegame help
+vanilla.skill.help: Available SKILL commands:
+vanilla.skill.help.list: skill list: List all skills and the current status
+vanilla.skill.help.lock: skill lock SKILLNAME: Locks the skill SKILLNAME
+vanilla.skill.help.lockall: skill lockall: Locks all the skills
+vanilla.skill.help.unlock: skill unlock SKILLNAME: Unlocks the skill SKILLNAME
+vanilla.skill.help.unlockall: skill unlockall: Unlocks all skills
+vanilla.skill.help.showui: skill showui: Show the unlock UI
+vanilla.skill.list.header: *** All skills:
+vanilla.skill.list.tier_header: Tier {0}
+vanilla.skill.list.entry:   {0}  -- {1} ({2})
+vanilla.skill.unlockall.success: All skills unlocked
+vanilla.skill.error.unknown_subcommand: Command {0} is unknow, use skill help
+vanilla.timescale.error.parameter_count: Command Timescale must be invoked with 1 parameter
+vanilla.timescale.error.value_out_of_range: Parameter must be a float number between 0 and 1.0
+vanilla.teleport.help: Available TELEPORT commands:
+vanilla.teleport.help.list: teleport list: List all teleports ID
+vanilla.teleport.help.go: teleport go IDTELEPORT: Teleport to this teleport
+vanilla.teleport.help.showui: teleport showui: Show the teleport UI
+vanilla.teleport.help.unlock: teleport unlock [ID|ALL]: Unlocks the teleport ID or all
+vanilla.teleport.list.header: *** All teleports:
+vanilla.teleport.list.entry: {0}: {1}  ({2}, {3})
+vanilla.teleport.error.unknown_subcommand: Command unknown, use teleport help
+vanilla.showui.help: Available SHOWUI commands:
+vanilla.showui.help.off: showui off: Turn off UI
+vanilla.showui.help.on: showui on: Turn on UI
+vanilla.showui.help.current: showui current: Show the current option
+vanilla.showui.current.value: *** Current ShowUI: {0}
+vanilla.showui.error.unknown_subcommand: Command unknow, use showui help
+vanilla.common.execution_showcursor.error.invalid_boolean_argument: Parameter must be Y/n
+vanilla.execution.enabled: Debug execution enabled.
+vanilla.execution.disabled: Debug execution disabled.
+vanilla.debug.help: Available DEBUG commands:
+vanilla.debug.help.list: debug list: List all debug systems
+vanilla.debug.help.on: debug on SYSTEM: Turn on debug for this system
+vanilla.debug.help.off: debug off SYSTEM: Turn off debug for this system
+vanilla.debug.list.system_ids: All systems ID:
+vanilla.debug.on.setting: Setting on {0}
+vanilla.debug.off.setting: Setting off {0}
+vanilla.debug.error.unknown_subcommand: Command unknow, use debug help
+vanilla.audio.help: Available AUDIO commands:
+vanilla.audio.help.list: audio list: List all volumes
+vanilla.audio.help.master: audio master VALUE: Change the master volumen, 0-1
+vanilla.audio.help.sfx: audio sfx VALUE: Change the sfx volumen, 0-1
+vanilla.audio.help.music: audio music VALUE: Change the music volumen, 0-1
+vanilla.audio.help.voiceover: audio voiceover VALUE: Change the voiceover volumen, 0-1
+vanilla.audio.master.set: Master volume setted
+vanilla.audio.sfx.set: Sfx volume setted
+vanilla.audio.music.set: Music volume setted
+vanilla.audio.voiceover.set: Voiceover volume setted
+vanilla.audio.list.master_volume: Master volume: {0}
+vanilla.audio.list.sfx_volume: Sfx volume: {0}
+vanilla.audio.list.music_volume: Music volume: {0}
+vanilla.audio.list.voiceover_volume: Voiceover volume: {0}
+vanilla.common.audio_alms.error.unknown_subcommand: Command unknow, use audio help
+vanilla.flag.help: Available FLAG commands:
+vanilla.flag.help.set: flag set IDFLAG: Set flag to true
+vanilla.flag.help.clear: flag clear IDFLAG: Set flag to false
+vanilla.flag.help.test: flag test IDFLAG: Outputs the current value of flag
+vanilla.flag.set.true: Flag: {0} set to true.
+vanilla.flag.clear.false: Flag: {0} set to false.
+vanilla.flag.test.true: Flag: {0} is: true.
+vanilla.flag.test.false: Flag: {0} is: false.
+vanilla.flag.error.unknown_subcommand: Command unknow, use flag help
+vanilla.guilt.help: Available GUILT commands:
+vanilla.guilt.help.get: guilt get: Get the level of guilt
+vanilla.guilt.help.reset: guilt reset: Reset guilt to 0
+vanilla.guilt.help.add: guilt add: Add guilt to current position
+vanilla.guilt.get.current: Current guilt: {0}
+vanilla.guilt.reset.success: Guilt reset to 0.
+vanilla.guilt.add.success: Guilt added.
+vanilla.guilt.error.unknown_subcommand: Command unknow, use guilt help
+vanilla.testplan.help: Available TESTPLAN commands:
+vanilla.testplan.help.plan_1_description: 1: Test plan command macro that includes progression tiers 1, 2 and 3
+vanilla.testplan.error.unknown_subcommand: Command unknow, use testplan help
+vanilla.achievement.help: Available ACHIEVEMENT commands:
+vanilla.achievement.help.enablepopup: enablepopup: Show the popup when achievement is granted
+vanilla.achievement.help.disablepopup: disablepopup: Dont show the popup when achievement is granted
+vanilla.achievement.help.check: check acxx: checks whether the achievement with acxx as its ID is granted or not.
+vanilla.achievement.help.grant: grant acxx: grants the achievement with acxx as its ID.
+vanilla.achievement.help.clear: clear acxx: clears the progress of the achievement with acxx as its ID.
+vanilla.achievement.help.clearsteam: clearsteam acxx: clears the progress of the achievement with acxx on Steam.
+vanilla.achievement.help.clearall: clearall: clears the progress of all the achievements.
+vanilla.achievement.help.clearsteamall: clearsteamall: clears the progress of all the achievements on Steam.
+vanilla.achievement.help.addprogress: addprogress acxx progress: adds progress (from 0f to 100f) to the achievement with acxx as its ID.
+vanilla.achievement.help.checkprogress: checkprogress acxx: checks the progress of the achievement with acxx as its ID.
+vanilla.achievement.enablepopup.success: Popup is enabled
+vanilla.achievement.disablepopup.success: Popup is disabled
+vanilla.achievement.check.granted: Achievement: {0} is granted.
+vanilla.achievement.check.not_granted: Achievement: {0} is not granted.
+vanilla.achievement.grant.already_granted: Achievement: {0} is already granted.
+vanilla.achievement.grant.success: Achievement: {0} has been granted.
+vanilla.achievement.grant.error.failed: Achievement: {0} hasn't been granted. Something went wrong.
+vanilla.achievement.clear.error.failed: Achievement: {0} hasn't been cleared. Something went wrong.
+vanilla.achievement.clear.success: Achievement: {0} has been cleared.
+vanilla.achievement.clearsteam.error.failed: Achievement: {0} hasn't been cleared from Steam for user {1}. Something went wrong.
+vanilla.achievement.clearsteam.success: Achievement: {0} has been cleared from Steam for user {1}
+vanilla.achievement.steam.error.not_initialized: STEAM is not initialized!
+vanilla.achievement.clearsteamall.error.failed: Achievements hasn't been cleared from Steam. Something went wrong.
+vanilla.achievement.clearsteamall.success: Achievements has been cleared from Steam for user {0}
+vanilla.achievement.addprogress.success: Achievement: {0} has been added a progress of: {1}
+vanilla.achievement.checkprogress.value: Achievement: {0} has a progress of: {1}
+vanilla.achievement.error.unknown_subcommand: Command unknow, use achievement help
+vanilla.skin.help: Available SKIN commands:
+vanilla.skin.help.list: list: get all the possible SKIN_IDs.
+vanilla.skin.help.listunlocked: listunlocked: get all the unlocked SKIN_IDs.
+vanilla.skin.help.get: get: get the current SKIN_ID.
+vanilla.skin.help.set: set: set the current skin with a given SKIN_ID.
+vanilla.skin.help.unlock: unlock [SKIN_ID | ALL]: unlocks the skin with SKIN_ID or all of them
+vanilla.skin.help.lock: lock [SKIN_ID | ALL]: locks the skin with SKIN_ID or all of them
+vanilla.skin.list.skin_id: Skin ID: {0}
+vanilla.skin.listunlocked.skin_id: Skin UNLOCKED ID: {0}
+vanilla.skin.get.current_skin_id: Current Skin ID: {0}
+vanilla.skin.set.error.skin_not_found: Skin ID '{0}' doesn't exist.
+vanilla.skin.unlock.success: Skin with ID: {0} has been unlocked.
+vanilla.skin.error.skin_not_found: A skin with ID: {0} doesn't exist!
+vanilla.skin.lock.success: Skin with ID: {0} has been locked.
+vanilla.skin.error.unknown_subcommand: Command unknow, use skin help
+vanilla.show_debug_ui.help: Available show_debug_ui commands:
+vanilla.show_debug_ui.help.off: show_debug_ui off: Turn off DEBUG UI
+vanilla.show_debug_ui.help.on: show_debug_ui on: Turn on DEBUG UI
+vanilla.show_debug_ui.help.current: show_debug_ui current: Show the current option
+vanilla.show_debug_ui.current.value: *** Current Debug UI: {0}
+vanilla.show_debug_ui.error.unknown_subcommand: Command unknow, use show_debug_ui help
+vanilla.map.help: Available MAP commands:
+vanilla.map.help.list: map list: List all maps.
+vanilla.map.help.set: map set MAPID: Set current map.
+vanilla.map.help.secrets: map secrets: List currentmap secrets.
+vanilla.map.help.secret: map secret SECRETID ON/OFF: Sets the secret SECRETID on or off in current map.
+vanilla.map.help.reveal.all: map reveal all: Reveal all map
+vanilla.map.help.reveal.district: map reveal DISTRICT: Reveal district DISTRICT
+vanilla.map.help.reveal.zone: map reveal DISTRICT ZONE: Reveal zone ZONE in district DISTRICT
+vanilla.map.help.unrevealed: map unrevealed: Lists all unrevealed cells in current map
+vanilla.map.list.available_maps: Available MAPs:
+vanilla.map.list.current_marker: {0}  <--- Current
+vanilla.map.secrets.header: Available Secrets:
+vanilla.map.secrets.entry: {0}, revealed: {1}
+vanilla.map.set.map_type: Map type: {0}
+vanilla.map.unrevealed.total_cells: Total unrevealed cells: {0}
+vanilla.map.unrevealed.cell:    Cell: {0} {1}
+vanilla.map.reveal.error.parameter_count: The command map reveal needs 1 or 2 params. You passed {0}
+vanilla.map.error.unknown_subcommand: Command unknow, use map help
+vanilla.showcursor.enabled: Show Cursor enabled.
+vanilla.showcursor.disabled: Show Cursor disabled.
+vanilla.gamemode.help: Available GAMEMODE commands:
+vanilla.gamemode.help.list: list: get all the possible game modes.
+vanilla.gamemode.help.current: current: get the currently active game mode.
+vanilla.gamemode.help.set: set GAME_MODE: sets the currently active game mode to a given value.
+vanilla.gamemode.list.entry: Game Mode: {0}
+vanilla.gamemode.current.value: Current Game Mode: {0}
+vanilla.gamemode.set.success: Game Mode has been changed to: {0}
+vanilla.gamemode.set.error.unknown_mode: A Game Mode with name: {0} doesn't exist!
+vanilla.gamemode.error.unknown_subcommand: Command unknow, use gamemode help
+vanilla.penitence.activation.success: Penitence '{0}' has been activated.
+vanilla.penitence.error.penitence_not_found: A penitence with name: {0} doesn't exist!
+vanilla.penitence.help: Available PENITENCE commands:
+vanilla.penitence.help.current: current: gets the currently active penitence, if any.
+vanilla.penitence.help.activate: activate PEXX: activates the penitence with the given id.
+vanilla.penitence.help.deactivate: deactivate: deactivates the currently active penitence.
+vanilla.penitence.help.abandon: abandon: abandons the currently active penitence.
+vanilla.penitence.help.complete: complete: completes the currently active penitence.
+vanilla.penitence.help.listall: listall: lists all the penitences.
+vanilla.penitence.help.listabandoned: listabandoned: lists all the abandoned penitences.
+vanilla.penitence.help.listcompleted: listcompleted: lists all the completed penitences.
+vanilla.penitence.current.value: Current Penitence: {0}
+vanilla.penitence.error.no_active_penitence: There is no penitence currently active!
+vanilla.penitence.deactivate.success: Previously current penitence '{0}' has been deactivated.
+vanilla.penitence.abandon.success: Previously current penitence '{0}' has been marked as abandoned.
+vanilla.penitence.complete.success: Previously current penitence '{0}' has been marked as completed.
+vanilla.penitence.listall.entry: Penitence: {0}
+vanilla.penitence.listall.error.empty: Something went wrong! It seems that there are no penitences.
+vanilla.penitence.listabandoned.entry: Abandoned penitence: {0}
+vanilla.penitence.listabandoned.empty: There are no abandoned penitences.
+vanilla.penitence.listcompleted.entry: Completed penitence: {0}
+vanilla.penitence.listcompleted.empty: There are no completed penitences.
+vanilla.penitence.error.unknown_subcommand: Command unknow, use penitence help
+vanilla.alms.help: Available ALMS commands:
+vanilla.alms.help.current: alms current: Get current alms and tier
+vanilla.alms.help.list: alms list: List all tiers requeriments
+vanilla.alms.help.consume: alms consume NUMBER: Consume NUMBER of tears
+vanilla.alms.help.set: alms set NUMBER: Set the current alms
+vanilla.alms.current.tears_given: Current tears given: {0}
+vanilla.alms.current.tier: Current tier: {0}
+vanilla.alms.current.altar_level: Altar level: {0}
+vanilla.alms.current.prie_dieu_level: PrieDieu level: {0}
+vanilla.alms.list.header: Tears to reach tier:
+vanilla.alms.list.tier_requirement: Tier {0}: {1} tears needed.
+vanilla.alms.consume.error.insufficient_tears: Error can't consume {0} tears
+vanilla.alms.consume.success: Tears consumed.
+vanilla.alms.set.success: Alms setted
+vanilla.tutorial.list.header: Available tutorials:
+vanilla.tutorial.show.error.unknown_tutorial: Unknown tutorial: {0}
+vanilla.tutorial.help.show: {0} show TUTORIAL_ID: Show TUTORIAL_ID tutorial
+vanilla.tutorial.help.list: {0} list: Show tutorials list
+vanilla.bossrush.help: Available BOSS RUSH commands:
+vanilla.bossrush.help.start: start course_x y: starts the x boss rush course with the difficulty y.
+vanilla.bossrush.help.hub: hub: loads the hub scene.
+vanilla.bossrush.help.next: next: loads the next course scene.
+vanilla.bossrush.help.golast: golast: goes to last boss.
+vanilla.bossrush.help.end: end: ends the current boss rush run if any, showing the results.
+vanilla.bossrush.help.printscore: printscore: prints in the console the current score.
+vanilla.bossrush.help.unlock: unlock course_x: unlocks course_x.
+vanilla.bossrush.error.unknown_subcommand: Command unknow, use bossrush help
+vanilla.miriam.help: Available MIRIAM commands:
+vanilla.miriam.help.status: miriam status: Write the quest status
+vanilla.miriam.help.start: miriam start: Start miriam quest
+vanilla.miriam.help.end: miriam end: End miriam quest
+vanilla.miriam.help.activateportal: miriam activateportal: Start the next miriam portal and teleport
+vanilla.miriam.help.deactivateportal: miriam deactivateportal: End the current portal and teleport outside
+vanilla.miriam.start.success: Miriam started: {0}
+vanilla.miriam.end.success: Miriam finished: {0}
+vanilla.miriam.status.current_portal: Miriam current portal: {0}
+vanilla.miriam.status.closed_portals: Miriam closed portals: {0}
+vanilla.miriam.status.portal.from_scene:    Portal from scene {0}
+vanilla.miriam.error.unknown_subcommand: Command unknow, use miriam help
+vanilla.demake.help: Available DEMAKE commands:
+vanilla.demake.help.enter: enter: enter the demake.
+vanilla.demake.error.unknown_subcommand: Command unknow, use demake help
+vanilla.camera.help.description: Shows camera information.
+vanilla.camera.help.usage: USAGE: camera ARGUMENT
+vanilla.camera.help.valid_arguments: Valid values for ARGUMENT are:
+vanilla.camera.help.argument.ui: ui: Shows info for the UI camera
+vanilla.camera.help.argument.game: game: Shows info for the game camera
+vanilla.camera.help.argument.virtual: virtual: Shows info for the virtual (final composition) camera
+vanilla.camera.help.argument.all: all: Shows info for the ui, game and virtual cameras
+vanilla.camera.help.argument.scene: scene: Shows info every loaded camera (dynamic)
+vanilla.camera.info.separator: -------------------
+vanilla.camera.info.name: Camera name: {0}
+vanilla.camera.info.position: Camera position: {0}
+vanilla.camera.info.aspect: Camera aspect: {0}
+vanilla.camera.info.rect: Camera rect: {0}
+vanilla.camera.info.is_orthographic: Camera isOrtho: {0}
+vanilla.camera.info.orthographic_size: Camera orthoSize: {0}
+vanilla.camera.info.pixel_size: Camera pixelSize: ({0}, {1})
+vanilla.camera.info.far_plane: Camera far plane: {0}
+vanilla.camera.info.near_plane: Camera near plane: {0}
+vanilla.camera.info.field_of_view: Camera FOV: {0}
+vanilla.completion.get.current_percentage: Current completion: {0:00.000}%
+vanilla.completion.unlocking_items: Unlocking {0} game items...
+vanilla.completion.unlock.done: ... DONE
+vanilla.completion.unlock.total_percent_added: TOTAL % added: {0:00.000}%
+vanilla.completion.help.get: {0} get: Shows current completion %
+vanilla.completion.help.base: {0} base: Unlocks 100% base game
+vanilla.completion.help.ngplus: {0} ng+: Unlocks 150%: 100% base game + 50% NG+
+vanilla.completion.assets.relics_added: Added Relics
+vanilla.completion.assets.beads_added: Added Beads
+vanilla.completion.assets.prayers_added: Added Prayers
+vanilla.completion.assets.sword_hearts_added: Added Sword Hearts
+vanilla.completion.assets.collectibles_added: Added Collectibles
+vanilla.completion.assets.teleports_added: Added Teleports
+vanilla.completion.assets.full_map_added: Added Full Map
+vanilla.completion.assets.fervour_upgraded: Upgraded Fervour
+vanilla.completion.assets.health_upgraded: Upgraded Health
+vanilla.completion.assets.mea_culpa_upgraded: Upgraded Mea Culpa
+vanilla.completion.assets.ending_a_set: Set Ending A
+vanilla.completion.assets.dead_bosses_added: Added Dead Bosses
+vanilla.completion.assets.arenas_added: Added Arenas
+vanilla.completion.assets.ngplus_map_revealed: Revealed NG+ map
+vanilla.completion.assets.amanecidas_bosses_defeated_added: Added Amanecidas bosses defeated
+vanilla.completion.assets.penitence.pe01_added: Added Penitence PE01
+vanilla.completion.assets.penitence.pe02_added: Added Penitence PE02
+vanilla.completion.assets.penitence.pe03_added: Added Penitence PE03
+vanilla.common.validation.parameter_count: The command {0} needs {1} params. You passed {2}
+vanilla.common.validation.integer_range: The parameter {0} must be an integer between {1} and {2}
+vanilla.common.validation.float_range: The parameter {0} must be a float between {1} and {2}
+vanilla.result.success: The command {0} executed successfully
+vanilla.result.failure: The command {0} has a problem and return false
 
 lang: fr
-console.ready: Console de débogage prête à l'emploi. Tapez Help pour afficher la liste des commandes.
 
 lang: it
 

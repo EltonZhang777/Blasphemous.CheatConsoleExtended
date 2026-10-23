@@ -16,6 +16,7 @@ public class CheatConsoleExtended : BlasMod
     protected override void OnInitialize()
     {
         LocalizationHandler.RegisterDefaultLanguage("en");
+        VanillaConsoleOutputLocalizer.Initialize(this);
 
         try
         {
