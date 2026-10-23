@@ -609,12 +609,23 @@ namespace Blasphemous.CheatConsoleExtended.Patches
 
         private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
+            return RouteConfiguredHotkey(
+                instructions,
+                ConsoleWidget_PlayerInputCallSite.FindAsyncConfiguredPlayerToggleMarker());
+        }
+
+        internal static IEnumerable<CodeInstruction> RouteConfiguredHotkey(
+            IEnumerable<CodeInstruction> instructions,
+            MethodInfo playerToggleMarker)
+        {
             MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)]);
-            MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SetEnabledFromPlayerInput));
-            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(
+            MethodInfo replacement = playerToggleMarker
+                ?? AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SetEnabledFromPlayerInput));
+            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCallOrAlreadyRouted(
                 instructions,
                 target,
                 replacement,
+                playerToggleMarker,
                 "CheatConsole configured hotkey SetEnabled");
         }
     }
@@ -644,11 +655,21 @@ namespace Blasphemous.CheatConsoleExtended.Patches
     {
         internal static MethodInfo FindAsyncPlayerToggleMarker()
         {
+            return FindAsyncPlayerToggleMarker("SetEnabledFromPlayerToggle");
+        }
+
+        internal static MethodInfo FindAsyncConfiguredPlayerToggleMarker()
+        {
+            return FindAsyncPlayerToggleMarker("SetEnabledFromConfiguredPlayerToggle");
+        }
+
+        private static MethodInfo FindAsyncPlayerToggleMarker(string methodName)
+        {
             Type patchType = typeof(ConsoleWidget_PlayerInputCallSite).Assembly.GetType(
                 "Blasphemous.CheatConsoleExtended.Patches.ConsoleWidget_SetEnabled_Async_Patch",
                 false);
             MethodInfo marker = patchType?.GetMethod(
-                "SetEnabledFromPlayerToggle",
+                methodName,
                 BindingFlags.Static | BindingFlags.NonPublic,
                 null,
                 [typeof(ConsoleWidget), typeof(bool)],
