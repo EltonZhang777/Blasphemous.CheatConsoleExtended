@@ -412,11 +412,141 @@ namespace Blasphemous.CheatConsoleExtended
 
 namespace Blasphemous.CheatConsoleExtended.Patches
 {
+    [HarmonyPatch(typeof(ConsoleWidget), "Update")]
+    internal static class ConsoleWidget_Update_PlayerToggle_Patch
+    {
+        [HarmonyTranspiler]
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            return ConsoleWidget_SetEnabled_Async_Patch.RoutePlayerToggleThroughMarker(instructions);
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class CheatConsole_Update_PlayerToggle_Patch
+    {
+        private static MethodBase TargetMethod()
+        {
+            Type patchType = typeof(Blasphemous.CheatConsole.CommandRegister).Assembly.GetType(
+                "Blasphemous.CheatConsole.ConsoleWidget_Update_Patch",
+                false);
+            return FindPatchTarget(patchType);
+        }
+
+        internal static MethodInfo FindPatchTarget(Type patchType)
+        {
+            return patchType?.GetMethod(
+                "Postfix",
+                BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+                null,
+                new[] { typeof(ConsoleWidget), typeof(bool) },
+                null);
+        }
+
+        private static bool Prepare()
+        {
+            return ShouldPatch(
+                TargetMethod(),
+                ConsoleWidget_SetEnabled_Async_Patch.HasControllerPlayerInputRoute);
+        }
+
+        internal static bool ShouldPatch(MethodBase targetMethod, bool hasControllerPlayerInputRoute)
+        {
+            return targetMethod != null && !hasControllerPlayerInputRoute;
+        }
+
+        [HarmonyTranspiler]
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            return ConsoleWidget_SetEnabled_Async_Patch.RouteConfiguredPlayerToggleThroughMarker(
+                instructions,
+                null);
+        }
+    }
+
+    internal sealed class PendingConsoleOpen
+    {
+        internal PendingConsoleOpen(bool isPlayerToggle)
+        {
+            ShouldOpen = true;
+            HasPlayerToggle = isPlayerToggle;
+        }
+
+        internal bool ShouldOpen { get; private set; }
+        internal bool HasPlayerToggle { get; private set; }
+
+        internal void RecordRequest(bool isPlayerToggle)
+        {
+            if (!isPlayerToggle)
+            {
+                ShouldOpen = true;
+                HasPlayerToggle = false;
+                return;
+            }
+
+            if (HasPlayerToggle)
+                ShouldOpen = !ShouldOpen;
+
+            HasPlayerToggle = true;
+        }
+    }
+
+    internal sealed class PlayerToggleFrameTracker
+    {
+        private readonly Dictionary<object, HashSet<KeyCode>> _keysByConsole = [];
+        private readonly HashSet<object> _consolesWithUnknownBinding = [];
+        private int _frameCount = int.MinValue;
+
+        internal bool TryRegister(object console, int currentFrame, KeyCode? key)
+        {
+            if (_frameCount != currentFrame)
+            {
+                _keysByConsole.Clear();
+                _consolesWithUnknownBinding.Clear();
+                _frameCount = currentFrame;
+            }
+
+            if (key == null || key == KeyCode.None)
+            {
+                if (_consolesWithUnknownBinding.Contains(console)
+                    || (_keysByConsole.TryGetValue(console, out HashSet<KeyCode> registeredKeys)
+                        && registeredKeys.Count > 0))
+                    return false;
+
+                return _consolesWithUnknownBinding.Add(console);
+            }
+
+            if (_consolesWithUnknownBinding.Contains(console))
+                return false;
+
+            if (!_keysByConsole.TryGetValue(console, out HashSet<KeyCode> keys))
+            {
+                keys = [];
+                _keysByConsole.Add(console, keys);
+            }
+
+            return keys.Add(key.Value);
+        }
+    }
+
     [HarmonyPatch(typeof(ConsoleWidget), "SetEnabled")]
     internal static class ConsoleWidget_SetEnabled_Async_Patch
     {
-        private static readonly HashSet<ConsoleWidget> pendingOpens = [];
+        private static readonly Dictionary<ConsoleWidget, PendingConsoleOpen> pendingOpens = [];
         private static readonly HashSet<ConsoleWidget> invokingOriginal = [];
+        private static readonly HashSet<ConsoleWidget> playerToggleInProgress = [];
+        private static readonly PlayerToggleFrameTracker playerToggleFrameTracker = new PlayerToggleFrameTracker();
+        private static readonly System.Reflection.MethodInfo capturePlayerOpenRequest = FindControllerMethod(
+            "TryCapturePlayerOpenRequest",
+            typeof(bool),
+            typeof(ConsoleWidget));
+        private static readonly System.Reflection.MethodInfo setEnabledFromPlayerInput = FindControllerMethod(
+            "SetEnabledFromPlayerInput",
+            typeof(void),
+            typeof(ConsoleWidget),
+            typeof(bool));
+
+        internal static bool HasControllerPlayerInputRoute => setEnabledFromPlayerInput != null;
 
         [HarmonyPrefix]
         private static bool Prefix(ConsoleWidget __instance, bool enabled)
@@ -430,9 +560,14 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                 return true;
             }
 
-            if (!pendingOpens.Add(__instance))
+            bool isPlayerOpenRequest = CapturePlayerOpenRequest(__instance);
+            if (pendingOpens.TryGetValue(__instance, out PendingConsoleOpen pendingOpen))
+            {
+                pendingOpen.RecordRequest(isPlayerOpenRequest);
                 return false;
+            }
 
+            pendingOpens.Add(__instance, new PendingConsoleOpen(isPlayerOpenRequest));
             __instance.StartCoroutine(OpenNextFrame(__instance));
             return false;
         }
@@ -442,18 +577,173 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             // shortcut: activation still runs on Unity's main thread; split it only if the in-game check still stalls.
             yield return null;
 
-            if (!pendingOpens.Remove(console) || console == null)
+            PendingConsoleOpen pendingOpen;
+            if (console == null
+                || !pendingOpens.TryGetValue(console, out pendingOpen)
+                || !pendingOpens.Remove(console))
+                yield break;
+
+            if (!pendingOpen.ShouldOpen)
                 yield break;
 
             invokingOriginal.Add(console);
             try
             {
-                console.SetEnabled(true);
+                if (pendingOpen.HasPlayerToggle)
+                    OpenFromPlayerInput(console);
+                else
+                    console.SetEnabled(true);
             }
             finally
             {
                 invokingOriginal.Remove(console);
             }
+        }
+
+        internal static IEnumerable<CodeInstruction> RoutePlayerToggleThroughMarker(
+            IEnumerable<CodeInstruction> instructions)
+        {
+            return RoutePlayerToggleThroughMarker(instructions, setEnabledFromPlayerInput);
+        }
+
+        internal static IEnumerable<CodeInstruction> RoutePlayerToggleThroughMarker(
+            IEnumerable<CodeInstruction> instructions,
+            MethodInfo controllerRoute)
+        {
+            return RoutePlayerToggleThroughMarker(instructions, controllerRoute, configuredHotkey: false);
+        }
+
+        internal static IEnumerable<CodeInstruction> RouteConfiguredPlayerToggleThroughMarker(
+            IEnumerable<CodeInstruction> instructions,
+            MethodInfo controllerRoute)
+        {
+            return RoutePlayerToggleThroughMarker(instructions, controllerRoute, configuredHotkey: true);
+        }
+
+        private static IEnumerable<CodeInstruction> RoutePlayerToggleThroughMarker(
+            IEnumerable<CodeInstruction> instructions,
+            MethodInfo controllerRoute,
+            bool configuredHotkey)
+        {
+            MethodInfo setEnabled = AccessTools.Method(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)]);
+            MethodInfo marker = AccessTools.Method(
+                typeof(ConsoleWidget_SetEnabled_Async_Patch),
+                configuredHotkey
+                    ? nameof(SetEnabledFromConfiguredPlayerToggle)
+                    : nameof(SetEnabledFromPlayerToggle),
+                [typeof(ConsoleWidget), typeof(bool)]);
+            int recognizedRoutes = 0;
+
+            foreach (CodeInstruction instruction in instructions)
+            {
+                if (instruction.operand is MethodInfo calledMethod)
+                {
+                    if (calledMethod == setEnabled || calledMethod == controllerRoute)
+                    {
+                        instruction.opcode = OpCodes.Call;
+                        instruction.operand = marker;
+                        recognizedRoutes++;
+                    }
+                    else if (calledMethod == marker)
+                    {
+                        recognizedRoutes++;
+                    }
+                }
+
+                yield return instruction;
+            }
+
+            if (recognizedRoutes != 1)
+                throw new InvalidOperationException($"Expected one player-toggle route, found {recognizedRoutes}.");
+        }
+
+        internal static void SetEnabledFromPlayerToggle(ConsoleWidget console, bool enabled)
+        {
+            SetEnabledFromPlayerToggle(console, enabled, KeyCode.F1);
+        }
+
+        internal static void SetEnabledFromConfiguredPlayerToggle(ConsoleWidget console, bool enabled)
+        {
+            SetEnabledFromPlayerToggle(console, enabled, GetConfiguredConsoleKey());
+        }
+
+        private static void SetEnabledFromPlayerToggle(ConsoleWidget console, bool enabled, KeyCode? inputKey)
+        {
+            if (!playerToggleFrameTracker.TryRegister(console, Time.frameCount, inputKey))
+                return;
+
+            bool addedMarker = playerToggleInProgress.Add(console);
+            try
+            {
+                if (setEnabledFromPlayerInput != null)
+                    setEnabledFromPlayerInput.Invoke(null, new object[] { console, enabled });
+                else
+                    console.SetEnabled(enabled);
+            }
+            finally
+            {
+                if (addedMarker)
+                    playerToggleInProgress.Remove(console);
+            }
+        }
+
+        private static KeyCode? GetConfiguredConsoleKey()
+        {
+            // shortcut: unknown bindings coalesce once per frame; use a public keybinding API if ModdingAPI adds one.
+            Type mainType = AccessTools.TypeByName("Blasphemous.CheatConsole.Main");
+            PropertyInfo cheatConsoleProperty = mainType?.GetProperty(
+                "CheatConsole",
+                BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            object cheatConsole = cheatConsoleProperty?.GetValue(null, null);
+            PropertyInfo inputHandlerProperty = cheatConsole?.GetType().GetProperty("InputHandler");
+            object inputHandler = inputHandlerProperty?.GetValue(cheatConsole, null);
+            if (inputHandler == null)
+                return null;
+
+            Dictionary<string, KeyCode> keybindings = Traverse.Create(inputHandler)
+                .Field("_keybindings")
+                .GetValue<Dictionary<string, KeyCode>>();
+            return keybindings != null
+                && keybindings.TryGetValue("Console", out KeyCode key)
+                && key != KeyCode.None
+                    ? key
+                    : (KeyCode?)null;
+        }
+
+        private static bool CapturePlayerOpenRequest(ConsoleWidget console)
+        {
+            return playerToggleInProgress.Contains(console)
+                || (capturePlayerOpenRequest != null
+                    && (bool)capturePlayerOpenRequest.Invoke(null, new object[] { console }));
+        }
+
+        private static void OpenFromPlayerInput(ConsoleWidget console)
+        {
+            if (setEnabledFromPlayerInput == null)
+            {
+                console.SetEnabled(true);
+                return;
+            }
+
+            setEnabledFromPlayerInput.Invoke(null, new object[] { console, true });
+        }
+
+        private static System.Reflection.MethodInfo FindControllerMethod(
+            string methodName,
+            Type returnType,
+            params Type[] parameterTypes)
+        {
+            Type controllerType = typeof(ConsoleWidget_SetEnabled_Async_Patch).Assembly.GetType(
+                "Blasphemous.CheatConsoleExtended.CheatConsoleController",
+                false);
+            System.Reflection.MethodInfo method = controllerType?.GetMethod(
+                methodName,
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic,
+                null,
+                parameterTypes,
+                null);
+
+            return method != null && method.ReturnType == returnType ? method : null;
         }
     }
 
