@@ -39,12 +39,14 @@ internal sealed class CommandDefinition
     /// <param name="value">The command object used for dispatch; <see langword="null"/> marks an internal console command.</param>
     /// <param name="argumentCounts">The accepted argument-count ranges by route, or <see langword="null"/> to skip count validation.</param>
     /// <param name="allowUnlistedArgumentCounts">Whether recognized routes without a count rule accept their arguments.</param>
+    /// <param name="argumentValidator">An optional validator for argument values after route and count validation.</param>
     internal CommandDefinition(
         string name,
         IEnumerable<string> subcommands,
         object value,
         IDictionary<string, ArgumentCountRange> argumentCounts,
-        bool allowUnlistedArgumentCounts = false)
+        bool allowUnlistedArgumentCounts = false,
+        Func<string[], bool> argumentValidator = null)
     {
         Name = name;
         Value = value;
@@ -55,6 +57,7 @@ internal sealed class CommandDefinition
             ? null
             : new Dictionary<string, ArgumentCountRange>(argumentCounts, StringComparer.OrdinalIgnoreCase);
         AllowUnlistedArgumentCounts = allowUnlistedArgumentCounts;
+        ArgumentValidator = argumentValidator;
     }
 
     public string Name { get; }
@@ -66,18 +69,18 @@ internal sealed class CommandDefinition
     internal Dictionary<string, ArgumentCountRange> ArgumentCounts { get; }
 
     internal bool AllowUnlistedArgumentCounts { get; }
+
+    internal Func<string[], bool> ArgumentValidator { get; }
 }
 
 /// <summary>Provides exact command matching, dispatch decisions, and edit-distance-based suggestions.</summary>
 internal static class StrictCommandResolver
 {
-    /// <summary>Splits an input line into whitespace-separated tokens after trimming it and removing carriage returns.</summary>
+    /// <summary>Splits an input line on ordinary spaces like the vanilla parser, retaining empty tokens.</summary>
     public static string[] Tokenize(string rawText)
     {
-        string text = (rawText ?? string.Empty).Replace("\r", string.Empty).Trim();
-        return text.Length == 0
-            ? []
-            : text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+        string text = (rawText ?? string.Empty).Replace("\r", string.Empty);
+        return text.Trim().Length == 0 ? [] : text.Split(' ');
     }
 
     /// <summary>Finds the first command whose name exactly matches the token, ignoring case.</summary>
@@ -94,6 +97,13 @@ internal static class StrictCommandResolver
         }
 
         return null;
+    }
+
+    /// <summary>Determines whether raw input parsed like the vanilla parser selects a runnable exact command.</summary>
+    /// <returns><see langword="true"/> when the vanilla handler should execute the input; otherwise, <see langword="false"/>.</returns>
+    public static bool ShouldRunOriginal(string rawText, IList<CommandDefinition> commands)
+    {
+        return ShouldRunOriginal(Tokenize(rawText), commands);
     }
 
     /// <summary>Determines whether an exact command, its first subcommand, and its argument count can run.</summary>
@@ -141,19 +151,34 @@ internal static class StrictCommandResolver
         }
 
         if (!command.ArgumentCounts.TryGetValue(route, out ArgumentCountRange range))
-            return command.AllowUnlistedArgumentCounts;
+        {
+            return command.AllowUnlistedArgumentCounts
+                && (command.ArgumentValidator == null || command.ArgumentValidator(tokens));
+        }
 
-        return range.Includes(argumentCount) && HasValidArgumentShape(command, tokens);
+        if (!range.Includes(argumentCount) || !HasValidArgumentShape(command, tokens))
+            return false;
+
+        return command.ArgumentValidator == null || command.ArgumentValidator(tokens);
     }
 
-    /// <summary>Rejects extra kill arguments that the vanilla handler would otherwise silently ignore.</summary>
+    /// <summary>Rejects invalid argument shapes that the vanilla handler would otherwise silently accept.</summary>
     private static bool HasValidArgumentShape(CommandDefinition command, string[] tokens)
     {
-        if (!string.Equals(command.Name, "kill", StringComparison.OrdinalIgnoreCase) || tokens.Length != 3)
-            return true;
+        if (string.Equals(command.Name, "map", StringComparison.OrdinalIgnoreCase)
+            && tokens.Length == 4
+            && string.Equals(tokens[1], "secret", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(tokens[3], "on", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tokens[3], "off", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tokens[3], "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tokens[3], "false", StringComparison.OrdinalIgnoreCase);
+        }
 
-        return string.Equals(tokens[1], "player", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(tokens[2], "prieudieu", StringComparison.OrdinalIgnoreCase);
+        return !string.Equals(command.Name, "kill", StringComparison.OrdinalIgnoreCase)
+            || tokens.Length != 3
+            || (string.Equals(tokens[1], "player", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(tokens[2], "prieudieu", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Determines whether a one-token input exactly names an internal console command.</summary>

@@ -17,6 +17,29 @@ internal static class StrictCommandRuntime
 {
     private static readonly Dictionary<string, string[]> VanillaSubcommands = CreateVanillaSubcommands();
     private static readonly Dictionary<string, Dictionary<string, ArgumentCountRange>> VanillaArgumentCounts = CreateVanillaArgumentCounts();
+    private static readonly Func<string[], bool> VanillaArgumentValidator =
+        CreateVanillaArgumentValidator(
+            () => Core.InventoryManager.GetRosaryBeadSlots(),
+            id => Core.AchievementsManager.Achievements.ContainsKey(id.ToUpperInvariant()),
+            id => Core.LevelManager.DEBUG_GetAllLevelsName().Exists(levelName =>
+                string.Equals(levelName, id, StringComparison.OrdinalIgnoreCase)),
+            (district, zone) =>
+            {
+                var currentMap = Core.NewMapManager?.DEBUG_GetCurrentMap();
+                if (currentMap == null)
+                    return false;
+
+                foreach (var cell in currentMap.Cells)
+                {
+                    if (cell.ZoneId.District == district
+                        && (zone == null || cell.ZoneId.Zone == zone))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
 
     /// <summary>Processes an input line and determines whether the original console handler should continue.</summary>
     /// <returns><see langword="true"/> when the original handler should run; otherwise, <see langword="false"/>.</returns>
@@ -38,7 +61,7 @@ internal static class StrictCommandRuntime
         }
 
         CommandDefinition command = StrictCommandResolver.FindExact(tokens[0], catalog);
-        if (StrictCommandResolver.ShouldRunOriginal(tokens, catalog))
+        if (StrictCommandResolver.ShouldRunOriginal(rawText, catalog))
             return true;
 
         console.Write("Command not found. Use Help for more information.");
@@ -85,6 +108,230 @@ internal static class StrictCommandRuntime
         return true;
     }
 
+    /// <summary>Creates pre-dispatch checks that mirror the vanilla handlers' explicit value validation.</summary>
+    internal static Func<string[], bool> CreateVanillaArgumentValidator(
+        Func<int> getRosaryBeadSlots,
+        Func<string, bool> achievementExists,
+        Func<string, bool> levelExists,
+        Func<string, string, bool> mapRevealTargetExists)
+    {
+        if (getRosaryBeadSlots == null)
+            throw new ArgumentNullException(nameof(getRosaryBeadSlots));
+        if (achievementExists == null)
+            throw new ArgumentNullException(nameof(achievementExists));
+        if (levelExists == null)
+            throw new ArgumentNullException(nameof(levelExists));
+        if (mapRevealTargetExists == null)
+            throw new ArgumentNullException(nameof(mapRevealTargetExists));
+
+        return tokens =>
+        {
+            if (tokens == null || tokens.Length == 0)
+                return false;
+
+            string command = tokens[0];
+            string subcommand = tokens.Length > 1 ? tokens[1] : string.Empty;
+
+            if (string.Equals(command, "command", StringComparison.OrdinalIgnoreCase) && tokens.Length > 2)
+                return false;
+
+            if ((string.Equals(command, "execution", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(command, "showcursor", StringComparison.OrdinalIgnoreCase))
+                && tokens.Length == 2)
+            {
+                return string.Equals(tokens[1], "y", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(tokens[1], "n", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (string.Equals(command, "bossrush", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(subcommand, "start", StringComparison.OrdinalIgnoreCase)
+                && tokens.Length == 4)
+            {
+                return CanParseEnum(typeof(BossRushManager.BossRushCourseId), tokens[2])
+                    && CanParseEnum(typeof(BossRushManager.BossRushCourseMode), tokens[3]);
+            }
+
+            if (string.Equals(command, "gamemode", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
+                && tokens.Length == 3)
+            {
+                string requestedName = tokens[2].ToUpperInvariant();
+                foreach (string gameModeName in Enum.GetNames(typeof(GameModeManager.GAME_MODES)))
+                {
+                    if (gameModeName.Equals(requestedName))
+                        return true;
+                }
+                return false;
+            }
+
+            if (string.Equals(command, "timescale", StringComparison.OrdinalIgnoreCase) && tokens.Length == 2)
+            {
+                return float.TryParse(tokens[1], out float timeScale)
+                    && !float.IsNaN(timeScale)
+                    && !float.IsInfinity(timeScale);
+            }
+
+            if (string.Equals(command, "achievement", StringComparison.OrdinalIgnoreCase)
+                && tokens.Length >= 3
+                && (string.Equals(subcommand, "check", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "grant", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "clear", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "clearsteam", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "addprogress", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "checkprogress", StringComparison.OrdinalIgnoreCase)))
+            {
+                return achievementExists(tokens[2])
+                    && (!string.Equals(subcommand, "addprogress", StringComparison.OrdinalIgnoreCase)
+                        || (tokens.Length == 4 && IsWithinRange(tokens[3], 0f, 100f)));
+            }
+
+            if ((string.Equals(command, "load", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(command, "loadnoui", StringComparison.OrdinalIgnoreCase))
+                && tokens.Length == 2)
+            {
+                return tokens[1].Trim().Length > 0 && levelExists(tokens[1]);
+            }
+
+            if (string.Equals(command, "map", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(subcommand, "reveal", StringComparison.OrdinalIgnoreCase))
+            {
+                if (tokens.Length == 3)
+                {
+                    if (string.Equals(tokens[2], "all", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(tokens[2], "ng", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    return mapRevealTargetExists(tokens[2], null);
+                }
+
+                return tokens.Length == 4 && mapRevealTargetExists(tokens[2], tokens[3]);
+            }
+
+            if (string.Equals(command, "audio", StringComparison.OrdinalIgnoreCase)
+                && (string.Equals(subcommand, "master", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "music", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "sfx", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "voiceover", StringComparison.OrdinalIgnoreCase))
+                && tokens.Length == 3)
+            {
+                return IsWithinRange(tokens[2], 0f, 1f);
+            }
+
+            if (string.Equals(command, "alms", StringComparison.OrdinalIgnoreCase)
+                && (string.Equals(subcommand, "consume", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase))
+                && tokens.Length == 3)
+            {
+                return IsWithinRange(tokens[2], 0, 99999);
+            }
+
+            if (string.Equals(command, "savegame", StringComparison.OrdinalIgnoreCase)
+                && (string.Equals(subcommand, "load", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "save", StringComparison.OrdinalIgnoreCase))
+                && tokens.Length == 3)
+            {
+                return IsWithinRange(tokens[2], 0, 10);
+            }
+
+            if (IsStatCommand(command) && tokens.Length == 3)
+            {
+                if (string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(subcommand, "setmax", StringComparison.OrdinalIgnoreCase))
+                {
+                    return IsWithinRange(tokens[2], 0f, 99999f);
+                }
+                if (string.Equals(subcommand, "upgradeto", StringComparison.OrdinalIgnoreCase))
+                    return IsWithinRange(tokens[2], 0, 9999);
+            }
+
+            if (string.Equals(command, "relic", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 4)
+                    return IsWithinRange(tokens[3], 0, 2);
+                if (string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
+                    return IsWithinRange(tokens[2], 0, 2);
+            }
+
+            if (string.Equals(command, "bead", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(subcommand, "setslots", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
+                    return IsWithinRange(tokens[2], 2, 7);
+                if (string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 4)
+                    return IsWithinRange(tokens[3], 0, getRosaryBeadSlots() - 1);
+                if (string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
+                    return IsWithinRange(tokens[2], 0, getRosaryBeadSlots() - 1);
+            }
+
+            if ((string.Equals(command, "sword", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase))
+                && string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase)
+                && tokens.Length == 4)
+            {
+                return IsWithinRange(tokens[3], 0, 0);
+            }
+
+            if ((string.Equals(command, "sword", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase))
+                && string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase)
+                && tokens.Length == 3)
+            {
+                return IsWithinRange(tokens[2], 0, 0);
+            }
+
+            if (string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(subcommand, "decipher", StringComparison.OrdinalIgnoreCase)
+                && tokens.Length == 4)
+            {
+                return IsWithinRange(tokens[3], 1, 20);
+            }
+
+            return true;
+        };
+    }
+
+    private static bool CanParseEnum(Type enumType, string value)
+    {
+        if (value.IndexOf(',') >= 0)
+            return false;
+
+        try
+        {
+            object parsedValue = Enum.Parse(enumType, value, true);
+            return Enum.IsDefined(enumType, parsedValue);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsWithinRange(string value, int minimum, int maximum)
+    {
+        return int.TryParse(value, out int parsed) && parsed >= minimum && parsed <= maximum;
+    }
+
+    private static bool IsWithinRange(string value, float minimum, float maximum)
+    {
+        return float.TryParse(value, out float parsed) && parsed >= minimum && parsed <= maximum;
+    }
+
+    private static bool IsStatCommand(string command)
+    {
+        return string.Equals(command, "health", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "flask", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "fervour", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "flaskhealth", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "purge", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "meaculpa", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "strength", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Builds the command catalog from console commands, built-in commands, and shared commands.</summary>
     private static List<CommandDefinition> CreateCatalog(ConsoleWidget console)
     {
@@ -109,7 +356,8 @@ internal static class StrictCommandRuntime
                         subcommands,
                         command,
                         argumentCounts,
-                        string.Equals(name, "command", StringComparison.OrdinalIgnoreCase)));
+                        string.Equals(name, "command", StringComparison.OrdinalIgnoreCase),
+                        argumentCounts == null ? null : VanillaArgumentValidator));
                 }
             }
         }
@@ -123,7 +371,9 @@ internal static class StrictCommandRuntime
             foreach (SharedCommand command in Core.SharedCommands.GetAllCommands())
             {
                 if (command != null && !string.IsNullOrEmpty(command.Id))
+                {
                     catalog.Add(new CommandDefinition(command.Id, null, command));
+                }
             }
         }
 
