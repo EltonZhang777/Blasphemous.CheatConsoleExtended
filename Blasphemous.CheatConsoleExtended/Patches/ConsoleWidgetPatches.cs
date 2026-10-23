@@ -584,7 +584,13 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         {
             MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)]);
             MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SetEnabledFromPlayerInput));
-            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(instructions, target, replacement, "ConsoleWidget.Update SetEnabled");
+            MethodInfo playerToggleMarker = ConsoleWidget_PlayerInputCallSite.FindAsyncPlayerToggleMarker();
+            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCallOrAlreadyRouted(
+                instructions,
+                target,
+                replacement,
+                playerToggleMarker,
+                "ConsoleWidget.Update SetEnabled");
         }
     }
 
@@ -605,7 +611,13 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         {
             MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)]);
             MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SetEnabledFromPlayerInput));
-            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(instructions, target, replacement, "CheatConsole configured hotkey SetEnabled");
+            MethodInfo playerToggleMarker = ConsoleWidget_PlayerInputCallSite.FindAsyncPlayerToggleMarker();
+            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCallOrAlreadyRouted(
+                instructions,
+                target,
+                replacement,
+                playerToggleMarker,
+                "CheatConsole configured hotkey SetEnabled");
         }
     }
 
@@ -624,14 +636,29 @@ namespace Blasphemous.CheatConsoleExtended.Patches
     internal static class ConsoleWidget_SetEnabled_AccessPolicy_Patch
     {
         [HarmonyPrefix]
-        private static bool Prefix(bool enabled)
+        private static bool Prefix(ConsoleWidget __instance, bool enabled)
         {
-            return CheatConsoleController.CanSetConsoleOpen(enabled);
+            return CheatConsoleController.CanSetConsoleOpen(__instance, enabled);
         }
     }
 
     internal static class ConsoleWidget_PlayerInputCallSite
     {
+        internal static MethodInfo FindAsyncPlayerToggleMarker()
+        {
+            Type patchType = typeof(ConsoleWidget_PlayerInputCallSite).Assembly.GetType(
+                "Blasphemous.CheatConsoleExtended.Patches.ConsoleWidget_SetEnabled_Async_Patch",
+                false);
+            MethodInfo marker = patchType?.GetMethod(
+                "SetEnabledFromPlayerToggle",
+                BindingFlags.Static | BindingFlags.NonPublic,
+                null,
+                [typeof(ConsoleWidget), typeof(bool)],
+                null);
+
+            return marker != null && marker.ReturnType == typeof(void) ? marker : null;
+        }
+
         internal static IEnumerable<CodeInstruction> ReplaceSingleCall(
             IEnumerable<CodeInstruction> instructions,
             MethodInfo target,
@@ -639,6 +666,36 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             string callSite)
         {
             return ReplaceCalls(instructions, target, replacement, callSite, 1);
+        }
+
+        internal static IEnumerable<CodeInstruction> ReplaceSingleCallOrAlreadyRouted(
+            IEnumerable<CodeInstruction> instructions,
+            MethodInfo target,
+            MethodInfo replacement,
+            MethodInfo alreadyRouted,
+            string callSite)
+        {
+            int matches = 0;
+            foreach (CodeInstruction instruction in instructions)
+            {
+                if (instruction.operand is MethodInfo method && method == target)
+                {
+                    matches++;
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = alreadyRouted ?? replacement;
+                }
+                else if (alreadyRouted != null
+                    && instruction.operand is MethodInfo routedMethod
+                    && routedMethod == alreadyRouted)
+                {
+                    matches++;
+                }
+
+                yield return instruction;
+            }
+
+            if (matches != 1)
+                throw new InvalidOperationException($"Expected one {callSite} call or routed marker, found {matches}.");
         }
 
         internal static IEnumerable<CodeInstruction> ReplaceCalls(

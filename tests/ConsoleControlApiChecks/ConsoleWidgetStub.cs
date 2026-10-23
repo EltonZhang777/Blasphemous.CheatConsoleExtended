@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using Blasphemous.CheatConsoleExtended;
+using UnityEngine.UI;
 
 namespace Gameplay.UI.Widgets
 {
@@ -8,16 +11,43 @@ namespace Gameplay.UI.Widgets
         public readonly List<string> ProcessedCommands = new List<string>();
         public readonly List<string> WrittenMessages = new List<string>();
         public ConsoleInput input = new ConsoleInput();
+        public ScrollRect scrollRect = new ScrollRect();
+        public static Func<ConsoleWidget, bool, bool> SetEnabledInterceptor;
 
         private bool isEnabled;
 
         public bool IsEnabled() => isEnabled;
 
-        public void SetEnabled(bool enabled) => isEnabled = enabled;
+        public void SetEnabled(bool enabled)
+        {
+            if (SetEnabledInterceptor != null && SetEnabledInterceptor(this, enabled))
+                return;
+
+            if (CheatConsoleController.CanSetConsoleOpen(this, enabled))
+                isEnabled = enabled;
+        }
 
         public void Write(string message) => WrittenMessages.Add(message);
 
-        public void Submit() { }
+        public void PressEnter() => CheatConsoleController.SubmitFromPlayerInput(this);
+
+        public void Submit()
+        {
+            if (!CheatConsoleController.BeginPlayerSubmission(this, out int previousSubmissionDepth))
+            {
+                CheatConsoleController.EndPlayerSubmission(previousSubmissionDepth);
+                return;
+            }
+
+            try
+            {
+                CheatConsoleController.ProcessCommandFromSubmit(this, input.text);
+            }
+            finally
+            {
+                CheatConsoleController.EndPlayerSubmission(previousSubmissionDepth);
+            }
+        }
 
         public void ProcessCommand(string command) => ProcessedCommands.Add(command);
     }
@@ -25,6 +55,14 @@ namespace Gameplay.UI.Widgets
     public sealed class ConsoleInput
     {
         public string text = string.Empty;
+    }
+}
+
+namespace UnityEngine.UI
+{
+    public sealed class ScrollRect
+    {
+        public float verticalNormalizedPosition = 1f;
     }
 }
 

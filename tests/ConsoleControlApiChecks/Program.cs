@@ -8,7 +8,50 @@ namespace Blasphemous.CheatConsoleExtended.Tests;
 public sealed class ConsoleControlApiChecks
 {
     [Fact]
-    public void Empty_submission_does_not_emit_user_access_error()
+    public void Player_submission_respects_user_policy_while_api_access_is_disabled()
+    {
+        const string error = "Error: Player command rejected because user access is disabled.";
+        const string logError = "Cheat Console: " + error;
+        bool previousUserPolicy = CheatConsoleController.IsUserEnabled;
+        bool previousApiPolicy = CheatConsoleController.IsApiEnabled;
+        ConsoleWidget previousConsole = ConsoleWidget.Instance;
+        var console = new ConsoleWidget();
+        ConsoleWidget.Instance = console;
+        console.input.text = "help";
+        console.scrollRect.verticalNormalizedPosition = 1f;
+        CheatConsoleController.SetUserEnabled(true);
+        CheatConsoleController.SetApiAccessEnabled(true);
+        CheatConsoleController.SetConsoleOpen(true);
+        CheatConsoleController.SetUserEnabled(false);
+        CheatConsoleController.SetApiAccessEnabled(false);
+        ModLog.Errors.Clear();
+
+        try
+        {
+            console.PressEnter();
+
+            Assert.Empty(console.ProcessedCommands);
+            Assert.Equal(new[] { error }, console.WrittenMessages);
+            Assert.Equal(new object[] { logError }, ModLog.Errors);
+            Assert.Equal(0f, console.scrollRect.verticalNormalizedPosition);
+            Assert.True(CheatConsoleController.IsConsoleWidgetOpen);
+
+            CheatConsoleController.SetUserEnabled(true);
+            console.PressEnter();
+            Assert.Equal(new[] { "help" }, console.ProcessedCommands);
+            Assert.Equal(new object[] { logError }, ModLog.Errors);
+        }
+        finally
+        {
+            CheatConsoleController.SetUserEnabled(previousUserPolicy);
+            CheatConsoleController.SetApiAccessEnabled(previousApiPolicy);
+            ConsoleWidget.Instance = previousConsole;
+            ModLog.Errors.Clear();
+        }
+    }
+
+    [Fact]
+    public void Empty_player_submission_does_not_emit_user_access_error()
     {
         bool previousUserPolicy = CheatConsoleController.IsUserEnabled;
         bool previousApiPolicy = CheatConsoleController.IsApiEnabled;
@@ -20,8 +63,8 @@ public sealed class ConsoleControlApiChecks
 
         try
         {
-            Assert.True(CheatConsoleController.BeginPlayerSubmission(console, out int previousSubmissionDepth));
-            CheatConsoleController.EndPlayerSubmission(previousSubmissionDepth);
+            console.PressEnter();
+
             Assert.Empty(console.WrittenMessages);
             Assert.Empty(ModLog.Errors);
         }
@@ -105,6 +148,46 @@ public sealed class ConsoleControlApiChecks
         {
             CheatConsoleController.SetUserEnabled(true);
             CheatConsoleController.SetApiAccessEnabled(true);
+            ConsoleWidget.Instance = null;
+        }
+    }
+
+    [Fact]
+    public void Rejects_a_direct_mod_open_when_api_access_is_disabled()
+    {
+        bool previousApiPolicy = CheatConsoleController.IsApiEnabled;
+        var console = new ConsoleWidget();
+        CheatConsoleController.SetApiAccessEnabled(false);
+
+        try
+        {
+            console.SetEnabled(true);
+
+            Assert.False(console.IsEnabled());
+        }
+        finally
+        {
+            CheatConsoleController.SetApiAccessEnabled(previousApiPolicy);
+        }
+    }
+
+    [Fact]
+    public void Rejects_an_unknown_api_open_when_api_access_is_disabled()
+    {
+        bool previousApiPolicy = CheatConsoleController.IsApiEnabled;
+        var console = new ConsoleWidget();
+        ConsoleWidget.Instance = console;
+        CheatConsoleController.SetApiAccessEnabled(false);
+
+        try
+        {
+            CheatConsoleController.SetConsoleOpen(true);
+
+            Assert.False(console.IsEnabled());
+        }
+        finally
+        {
+            CheatConsoleController.SetApiAccessEnabled(previousApiPolicy);
             ConsoleWidget.Instance = null;
         }
     }

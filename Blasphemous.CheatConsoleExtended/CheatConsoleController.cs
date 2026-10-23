@@ -23,6 +23,15 @@ public static class CheatConsoleController
     [ThreadStatic]
     private static int _apiAccessDepth;
 
+    [ThreadStatic]
+    private static ConsoleWidget _playerOpenRequest;
+
+    [ThreadStatic]
+    private static bool _playerOpenRequestConsumed;
+
+    [ThreadStatic]
+    private static bool _playerOpenRequestCaptured;
+
     /// <summary>Gets whether player-entered commands are allowed.</summary>
     public static bool IsUserEnabled => _isUserEnabled;
 
@@ -85,10 +94,29 @@ public static class CheatConsoleController
         return true;
     }
 
-    internal static bool CanSetConsoleOpen(bool open)
+    internal static bool CanSetConsoleOpen(ConsoleWidget console, bool open)
     {
-        bool isPlayerInput = ConsumePlayerInput();
-        return !open || isPlayerInput || _isApiEnabled;
+        bool isPlayerOpenRequest = open
+            && ReferenceEquals(_playerOpenRequest, console)
+            && !_playerOpenRequestConsumed
+            && _apiAccessDepth == 0;
+
+        if (isPlayerOpenRequest)
+            _playerOpenRequestConsumed = true;
+
+        return !open || isPlayerOpenRequest || _isApiEnabled;
+    }
+
+    internal static bool TryCapturePlayerOpenRequest(ConsoleWidget console)
+    {
+        if (console == null
+            || !ReferenceEquals(_playerOpenRequest, console)
+            || _apiAccessDepth > 0
+            || _playerOpenRequestCaptured)
+            return false;
+
+        _playerOpenRequestCaptured = true;
+        return true;
     }
 
     internal static bool BeginPlayerSubmission(ConsoleWidget console, out int previousSubmissionDepth)
@@ -207,14 +235,22 @@ public static class CheatConsoleController
 
     internal static void SetEnabledFromPlayerInput(ConsoleWidget console, bool open)
     {
-        int previousPlayerDepth = EnterPlayerInput();
+        ConsoleWidget previousPlayerOpenRequest = _playerOpenRequest;
+        bool previousPlayerOpenRequestConsumed = _playerOpenRequestConsumed;
+        bool previousPlayerOpenRequestCaptured = _playerOpenRequestCaptured;
+        _playerOpenRequest = open ? console : null;
+        _playerOpenRequestConsumed = false;
+        _playerOpenRequestCaptured = false;
+
         try
         {
             console.SetEnabled(open);
         }
         finally
         {
-            _playerInputDepth = previousPlayerDepth;
+            _playerOpenRequest = previousPlayerOpenRequest;
+            _playerOpenRequestConsumed = previousPlayerOpenRequestConsumed;
+            _playerOpenRequestCaptured = previousPlayerOpenRequestCaptured;
         }
     }
 
@@ -242,6 +278,8 @@ public static class CheatConsoleController
     {
         const string message = "Error: Player command rejected because user access is disabled.";
         console.Write(message);
+        if (console.scrollRect != null)
+            console.scrollRect.verticalNormalizedPosition = 0f;
         ModLog.Error("Cheat Console: " + message);
     }
 

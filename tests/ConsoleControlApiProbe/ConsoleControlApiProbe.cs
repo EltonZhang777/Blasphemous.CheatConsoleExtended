@@ -20,12 +20,14 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
     internal const string SentinelOutputPrefix = "[Console API Probe] Sentinel output ";
 
     internal static int SentinelExecutionCount;
+    private static ConsoleControlApiProbe _instance;
 
     private bool _hasRun;
     private bool _manualStageReady;
 
     private void Awake()
     {
+        _instance = this;
         _ = new ConsoleControlApiProbeMod();
 
         if (ConsoleWidget.Instance != null)
@@ -66,6 +68,11 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
         }
     }
 
+    internal static void StartProbeCoroutine(IEnumerator routine)
+    {
+        _instance.StartCoroutine(routine);
+    }
+
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.F9))
@@ -88,7 +95,7 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
 
             CheatConsoleController.SetUserEnabled(false);
             _manualStageReady = false;
-            Logger.LogInfo("[Console API Probe] MANUAL phase 2: API access remains disabled and user access is now disabled. Console open state must not change. The configured Console hotkey and F1 must still toggle the console. Enter help and press Enter; expect only the user-access Error in console and ModLog, with no help list. Press F9 to restore.");
+            Logger.LogInfo("[Console API Probe] MANUAL phase 2: API access remains disabled and user access is now disabled. Console open state must not change. Use the Console hotkey currently configured in CheatConsole (default `\\`; if changed, check its active binding before testing); it must still toggle the console. F1 is an optional extra check only if this game build is confirmed as a debug build; otherwise skip it. Enter help and press Enter; expect only the user-access Error in console and ModLog, with no help list. Press F9 to restore.");
             return;
         }
 
@@ -180,7 +187,7 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
             CheatConsoleController.SetApiAccessEnabled(false);
             CheatConsoleController.SetConsoleOpen(false);
             _manualStageReady = true;
-            Logger.LogInfo("[Console API Probe] PASS live API checks. MANUAL phase 1: API access is disabled; the configured Console hotkey and F1 must still open the console. Enter help and press Enter; the help list should run because user access remains enabled. Then enter `consoleapiprobe reentry` and press Enter. The command should close the console; reopen it with either hotkey and verify its PASS line, with no nested help output. Then press F7 to verify user-policy independence.");
+            Logger.LogInfo("[Console API Probe] PASS live API checks. MANUAL phase 1: API access is disabled. Use the Console hotkey currently configured in CheatConsole (default `\\`; if changed, check its active binding before testing); it must still open the console. F1 is an optional extra check only if this game build is confirmed as a debug build; otherwise skip it. Enter help and press Enter; the help list should run because user access remains enabled. Then enter `consoleapiprobe reentry` and press Enter. The command should close the console; reopen it with the configured Console hotkey (or F1 only for the optional debug-build check) and verify its PASS line, with no nested help output. Then press F7 to verify user-policy independence.");
         }
     }
 
@@ -316,12 +323,21 @@ internal sealed class ConsoleApiReentryProbeCommand : ModCommand
 
         console.SetEnabled(false);
         console.SetEnabled(true);
+        ConsoleControlApiProbe.StartProbeCoroutine(CheckReentryAfterDeferredOpen(console, nestedProcessCommandBlocked));
+    }
+
+    private IEnumerator CheckReentryAfterDeferredOpen(ConsoleWidget console, bool nestedProcessCommandBlocked)
+    {
+        // The async SetEnabled hook resumes next frame; wait an extra turn so coroutine ordering cannot make this an early check.
+        yield return null;
+        yield return null;
+
         bool directOpenBlocked = !console.IsEnabled();
 
         if (nestedProcessCommandBlocked && directOpenBlocked)
         {
             Write("[Console API Probe] PASS reentrant mod command could not bypass disabled API access.");
-            return;
+            yield break;
         }
 
         Write("[Console API Probe] FAIL reentry checks: nested command "
