@@ -611,12 +611,10 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         {
             MethodInfo target = AccessTools.Method(typeof(ConsoleWidget), "SetEnabled", [typeof(bool)]);
             MethodInfo replacement = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.SetEnabledFromPlayerInput));
-            MethodInfo playerToggleMarker = ConsoleWidget_PlayerInputCallSite.FindAsyncPlayerToggleMarker();
-            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCallOrAlreadyRouted(
+            return ConsoleWidget_PlayerInputCallSite.ReplaceSingleCall(
                 instructions,
                 target,
                 replacement,
-                playerToggleMarker,
                 "CheatConsole configured hotkey SetEnabled");
         }
     }

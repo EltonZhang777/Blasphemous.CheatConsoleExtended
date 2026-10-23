@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Blasphemous.CheatConsoleExtended;
 using UnityEngine.UI;
@@ -12,7 +11,6 @@ namespace Gameplay.UI.Widgets
         public readonly List<string> WrittenMessages = new List<string>();
         public ConsoleInput input = new ConsoleInput();
         public ScrollRect scrollRect = new ScrollRect();
-        public static Func<ConsoleWidget, bool, bool> SetEnabledInterceptor;
 
         private bool isEnabled;
 
@@ -20,9 +18,6 @@ namespace Gameplay.UI.Widgets
 
         public void SetEnabled(bool enabled)
         {
-            if (SetEnabledInterceptor != null && SetEnabledInterceptor(this, enabled))
-                return;
-
             if (CheatConsoleController.CanSetConsoleOpen(this, enabled))
                 isEnabled = enabled;
         }
