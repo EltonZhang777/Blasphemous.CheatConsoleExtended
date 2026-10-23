@@ -337,7 +337,7 @@ public sealed class StrictCommandResolverTests
     }
 
     [Fact]
-    public void ValidatesInventorySlotsWithoutInspectingDynamicIds()
+    public void ValidatesInventorySlotsWhileAllowingRegisteredDynamicIds()
     {
         string[] inventoryRoutes = { "help", "equip", "unequip", "setslots", "decipher" };
         (string Subcommand, int Minimum, int Maximum)[] inventoryCounts =
@@ -372,6 +372,115 @@ public sealed class StrictCommandResolverTests
         Assert.True(ShouldRunVanillaRoute("prayer decipher arbitrary-id 20", "prayer", inventoryRoutes, inventoryCounts));
         Assert.False(ShouldRunVanillaRoute("prayer decipher arbitrary-id 21", "prayer", inventoryRoutes, inventoryCounts));
         Assert.False(ShouldRunVanillaRoute("prayer decipher arbitrary-id 0", "prayer", inventoryRoutes, inventoryCounts));
+    }
+
+    [Fact]
+    public void ValidatesInventoryIdsAgainstCategoryLookupsBeforeOriginalDispatch()
+    {
+        Dictionary<string, HashSet<string>> registeredItems = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["relic"] = new HashSet<string>(new[] { "RE01", "RE401" }, StringComparer.OrdinalIgnoreCase),
+            ["questitem"] = new HashSet<string>(new[] { "QI01" }, StringComparer.OrdinalIgnoreCase),
+            ["collectible"] = new HashSet<string>(new[] { "CO01" }, StringComparer.OrdinalIgnoreCase),
+            ["bead"] = new HashSet<string>(new[] { "RB01" }, StringComparer.OrdinalIgnoreCase),
+            ["prayer"] = new HashSet<string>(new[] { "PR01" }, StringComparer.OrdinalIgnoreCase),
+            ["sword"] = new HashSet<string>(new[] { "SW01" }, StringComparer.OrdinalIgnoreCase)
+        };
+        Func<string, string, bool> inventoryItemExists = (category, id) =>
+            registeredItems.TryGetValue(category, out HashSet<string> ids) && ids.Contains(id);
+        Func<string[], bool> validator = CreateTestVanillaArgumentValidator(inventoryItemExists);
+
+        bool ShouldRun(string input, string commandName, string[] subcommands, params (string Subcommand, int Minimum, int Maximum)[] rules)
+        {
+            return ShouldRunVanillaRouteWithArgumentValidator(input, commandName, subcommands, validator, rules);
+        }
+
+        string[] relicRoutes = { "help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip" };
+        string[] questItemRoutes = { "help", "list", "listowned", "add", "remove" };
+        string[] collectibleRoutes = { "help", "list", "listowned", "add", "remove" };
+        string[] beadRoutes = { "help", "list", "listowned", "setslots", "add", "remove", "equiped", "equip", "unequip" };
+        string[] prayerRoutes = { "help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip", "decipher" };
+        string[] swordRoutes = { "help", "list", "listowned", "add", "remove", "equiped", "equip", "unequip" };
+
+        Assert.True(ShouldRun("relic add RE01", "relic", relicRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("relic remove RE401", "relic", relicRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("relic equip RE401 0", "relic", relicRoutes, ("equip", 2, 2)));
+        Assert.True(ShouldRun("questitem add QI01", "questitem", questItemRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("questitem remove QI01", "questitem", questItemRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("collectible add CO01", "collectible", collectibleRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("collectible remove CO01", "collectible", collectibleRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("bead add RB01", "bead", beadRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("bead remove RB01", "bead", beadRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("bead equip RB01 6", "bead", beadRoutes, ("equip", 2, 2)));
+        Assert.True(ShouldRun("sword add SW01", "sword", swordRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("sword remove SW01", "sword", swordRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("sword equip SW01 0", "sword", swordRoutes, ("equip", 2, 2)));
+        Assert.True(ShouldRun("prayer add PR01", "prayer", prayerRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("prayer remove PR01", "prayer", prayerRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("prayer equip PR01 0", "prayer", prayerRoutes, ("equip", 2, 2)));
+        Assert.True(ShouldRun("prayer decipher PR01 20", "prayer", prayerRoutes, ("decipher", 2, 2)));
+
+        Assert.True(ShouldRun("relic add ALL", "relic", relicRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("questitem remove all", "questitem", questItemRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("collectible add all", "collectible", collectibleRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("bead remove all", "bead", beadRoutes, ("remove", 1, 1)));
+        Assert.True(ShouldRun("prayer add all", "prayer", prayerRoutes, ("add", 1, 1)));
+        Assert.True(ShouldRun("sword remove all", "sword", swordRoutes, ("remove", 1, 1)));
+
+        Assert.False(ShouldRun("relic add MISSING", "relic", relicRoutes, ("add", 1, 1)));
+        Assert.False(ShouldRun("relic add RB01", "relic", relicRoutes, ("add", 1, 1)));
+        Assert.False(ShouldRun("questitem remove RE401", "questitem", questItemRoutes, ("remove", 1, 1)));
+
+        Assert.Equal(
+            "MissingRelic is not a valid relic ID, please use list subcommand",
+            StrictCommandRuntime.GetInvalidInventoryItemMessage(StrictCommandResolver.Tokenize("relic add MissingRelic"), inventoryItemExists));
+        Assert.Equal(
+            "MISSING is not a valid quest item ID, please use list subcommand",
+            StrictCommandRuntime.GetInvalidInventoryItemMessage(StrictCommandResolver.Tokenize("questitem remove MISSING"), inventoryItemExists));
+        Assert.Equal(
+            "MISSING is not a valid collectible item ID, please use list subcommand",
+            StrictCommandRuntime.GetInvalidInventoryItemMessage(StrictCommandResolver.Tokenize("collectible remove MISSING"), inventoryItemExists));
+        Assert.Equal(
+            "MISSING is not a valid rosary bead ID, please use list subcommand",
+            StrictCommandRuntime.GetInvalidInventoryItemMessage(StrictCommandResolver.Tokenize("bead equip MISSING 0"), inventoryItemExists));
+        Assert.Equal(
+            "MISSING is not a valid prayer ID, please use list subcommand",
+            StrictCommandRuntime.GetInvalidInventoryItemMessage(StrictCommandResolver.Tokenize("prayer decipher MISSING 1"), inventoryItemExists));
+        Assert.Equal(
+            "MISSING is not a valid sword ID, please use list subcommand",
+            StrictCommandRuntime.GetInvalidInventoryItemMessage(StrictCommandResolver.Tokenize("sword equip MISSING 0"), inventoryItemExists));
+
+        bool allLookupInvoked = false;
+        Func<string, string, bool> missingLookup = (category, id) =>
+        {
+            allLookupInvoked = true;
+            return false;
+        };
+        Assert.Null(StrictCommandRuntime.GetInvalidInventoryItemMessage(
+            StrictCommandResolver.Tokenize("relic add ALL"), missingLookup));
+        Assert.False(allLookupInvoked);
+        Assert.Null(StrictCommandRuntime.GetInvalidInventoryItemMessage(
+            StrictCommandResolver.Tokenize("inventory add MISSING"), inventoryItemExists));
+        Assert.Null(StrictCommandRuntime.GetInvalidInventoryItemMessage(
+            StrictCommandResolver.Tokenize("relic add MISSING extra"), inventoryItemExists));
+
+        List<CommandDefinition> dispatchCatalog = new List<CommandDefinition>
+        {
+            new CommandDefinition("relic", new[] { "add" }, new object(), Counts(("add", 1, 1)), false, validator)
+        };
+        int originalHandlerCalls = 0;
+        void Dispatch(string input)
+        {
+            if (StrictCommandResolver.ShouldRunOriginal(input, dispatchCatalog))
+                originalHandlerCalls++;
+        }
+
+        Dispatch("relic add MISSING");
+        Assert.Equal(0, originalHandlerCalls);
+        Dispatch("relic add RB01");
+        Assert.Equal(0, originalHandlerCalls);
+        Dispatch("relic add RE401");
+        Assert.Equal(1, originalHandlerCalls);
     }
 
     [Fact]
@@ -429,7 +538,8 @@ public sealed class StrictCommandResolverTests
             id => string.Equals(id, "AC01", StringComparison.OrdinalIgnoreCase),
             level => string.Equals(level, "SCENE_ALPHA", StringComparison.OrdinalIgnoreCase),
             (district, zone) => string.Equals(district, "DISTRICT_A", StringComparison.Ordinal)
-                && (zone == null || string.Equals(zone, "ZONE_A", StringComparison.Ordinal)));
+                && (zone == null || string.Equals(zone, "ZONE_A", StringComparison.Ordinal)),
+            (_, _) => true);
 
         string[] achievementRoutes = { "check", "grant", "clear", "clearsteam", "addprogress", "checkprogress" };
         var achievementCounts = new[]
@@ -485,6 +595,50 @@ public sealed class StrictCommandResolverTests
         Assert.Null(StrictCommandResolver.FindSafeHelpCommand("invincible", commands));
         Assert.Null(StrictCommandResolver.FindSafeHelpCommand("graybox", commands));
         Assert.Null(StrictCommandResolver.FindSafeHelpCommand("help", commands));
+    }
+
+    [Fact]
+    public void DispatchesOnlySafeCommandHelpAndWritesFallbackForUnsafeTarget()
+    {
+        List<CommandDefinition> commands = new List<CommandDefinition>
+        {
+            new CommandDefinition("health", new[] { "help" }, new object(), Counts(("help", 0, 0))),
+            new CommandDefinition("invincible", null, new object(), Counts(("", 0, 0)))
+        };
+        int healthHelpCalls = 0;
+        int invincibleHandlerCalls = 0;
+        List<string> output = new List<string>();
+        Dictionary<string, Action> handlers = new Dictionary<string, Action>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["health"] = () =>
+            {
+                healthHelpCalls++;
+                output.Add("Health command help");
+            },
+            ["invincible"] = () => invincibleHandlerCalls++
+        };
+
+        bool TryShowSafeHelp(string targetName)
+        {
+            CommandDefinition command = StrictCommandResolver.FindSafeHelpCommand(targetName, commands);
+            if (command == null)
+                return false;
+
+            handlers[command.Name]();
+            return true;
+        }
+
+        Assert.True(Help_RenderCommandCatalog_Patch.DispatchCommandHelp(
+            new[] { "health" }, TryShowSafeHelp, output.Add));
+        Assert.Equal(1, healthHelpCalls);
+        Assert.Equal("Health command help", output[0]);
+
+        Assert.False(Help_RenderCommandCatalog_Patch.DispatchCommandHelp(
+            new[] { "invincible" }, TryShowSafeHelp, output.Add));
+        Assert.Equal(0, invincibleHandlerCalls);
+        Assert.Equal(
+            "Command-specific help is unavailable. Use Help for the full command list.",
+            output[1]);
     }
 
     [Fact]
@@ -590,9 +744,15 @@ public sealed class StrictCommandResolverTests
         return StrictCommandResolver.ShouldRunOriginal(input, new List<CommandDefinition> { command });
     }
 
-    private static Func<string[], bool> CreateTestVanillaArgumentValidator()
+    private static Func<string[], bool> CreateTestVanillaArgumentValidator(
+        Func<string, string, bool> inventoryItemExists = null)
     {
-        return StrictCommandRuntime.CreateVanillaArgumentValidator(() => 7, _ => true, _ => true, (_, _) => true);
+        return StrictCommandRuntime.CreateVanillaArgumentValidator(
+            () => 7,
+            _ => true,
+            _ => true,
+            (_, _) => true,
+            inventoryItemExists ?? ((_, _) => true));
     }
 
     private static List<CommandDefinition> CreateSuggestionCatalog()

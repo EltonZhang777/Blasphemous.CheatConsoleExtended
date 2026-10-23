@@ -39,12 +39,17 @@ internal static class StrictCommandRuntime
                 }
 
                 return false;
-            });
+            },
+            IsInventoryItemRegistered);
 
     /// <summary>Processes an input line and determines whether the original console handler should continue.</summary>
+    /// <param name="console">The console receiving the command.</param>
+    /// <param name="rawText">The unmodified command input.</param>
+    /// <param name="resolvedCommand">The matching vanilla command, even when strict validation rejects its arguments.</param>
     /// <returns><see langword="true"/> when the original handler should run; otherwise, <see langword="false"/>.</returns>
-    internal static bool Process(ConsoleWidget console, string rawText)
+    internal static bool Process(ConsoleWidget console, string rawText, out ConsoleCommand resolvedCommand)
     {
+        resolvedCommand = null;
         string[] tokens = StrictCommandResolver.Tokenize(rawText);
         if (tokens.Length == 0)
             return false;
@@ -61,8 +66,16 @@ internal static class StrictCommandRuntime
         }
 
         CommandDefinition command = StrictCommandResolver.FindExact(tokens[0], catalog);
+        resolvedCommand = command == null ? null : command.Value as ConsoleCommand;
         if (StrictCommandResolver.ShouldRunOriginal(rawText, catalog))
             return true;
+
+        string invalidInventoryItemMessage = GetInvalidInventoryItemMessage(tokens, IsInventoryItemRegistered);
+        if (invalidInventoryItemMessage != null)
+        {
+            console.Write(invalidInventoryItemMessage);
+            return false;
+        }
 
         console.Write("Command not found. Use Help for more information.");
         if (command == null)
@@ -113,7 +126,8 @@ internal static class StrictCommandRuntime
         Func<int> getRosaryBeadSlots,
         Func<string, bool> achievementExists,
         Func<string, bool> levelExists,
-        Func<string, string, bool> mapRevealTargetExists)
+        Func<string, string, bool> mapRevealTargetExists,
+        Func<string, string, bool> inventoryItemExists)
     {
         if (getRosaryBeadSlots == null)
             throw new ArgumentNullException(nameof(getRosaryBeadSlots));
@@ -123,10 +137,15 @@ internal static class StrictCommandRuntime
             throw new ArgumentNullException(nameof(levelExists));
         if (mapRevealTargetExists == null)
             throw new ArgumentNullException(nameof(mapRevealTargetExists));
+        if (inventoryItemExists == null)
+            throw new ArgumentNullException(nameof(inventoryItemExists));
 
         return tokens =>
         {
             if (tokens == null || tokens.Length == 0)
+                return false;
+
+            if (GetInvalidInventoryItemMessage(tokens, inventoryItemExists) != null)
                 return false;
 
             string command = tokens[0];
@@ -289,6 +308,108 @@ internal static class StrictCommandRuntime
 
             return true;
         };
+    }
+
+    /// <summary>Returns vanilla's invalid-ID message for a supported item route, or null when the route is valid or unrelated.</summary>
+    internal static string GetInvalidInventoryItemMessage(
+        string[] tokens,
+        Func<string, string, bool> inventoryItemExists)
+    {
+        if (inventoryItemExists == null)
+            throw new ArgumentNullException(nameof(inventoryItemExists));
+        if (tokens == null || tokens.Length < 3)
+            return null;
+
+        string inventoryCategory;
+        string displayCategory;
+        bool supportsEquipment;
+        bool supportsDecipher = false;
+        switch (tokens[0].ToLowerInvariant())
+        {
+            case "relic":
+                inventoryCategory = "relic";
+                displayCategory = "relic";
+                supportsEquipment = true;
+                break;
+            case "questitem":
+                inventoryCategory = "questitem";
+                displayCategory = "quest item";
+                supportsEquipment = false;
+                break;
+            case "collectible":
+                inventoryCategory = "collectible";
+                displayCategory = "collectible item";
+                supportsEquipment = false;
+                break;
+            case "bead":
+                inventoryCategory = "bead";
+                displayCategory = "rosary bead";
+                supportsEquipment = true;
+                break;
+            case "prayer":
+                inventoryCategory = "prayer";
+                displayCategory = "prayer";
+                supportsEquipment = true;
+                supportsDecipher = true;
+                break;
+            case "sword":
+                inventoryCategory = "sword";
+                displayCategory = "sword";
+                supportsEquipment = true;
+                break;
+            default:
+                return null;
+        }
+
+        string subcommand = tokens[1];
+        bool isAddOrRemove = string.Equals(subcommand, "add", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(subcommand, "remove", StringComparison.OrdinalIgnoreCase);
+        bool isEquipmentRoute = supportsEquipment
+            && string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase);
+        bool isDecipherRoute = supportsDecipher
+            && string.Equals(subcommand, "decipher", StringComparison.OrdinalIgnoreCase);
+
+        if (isAddOrRemove)
+        {
+            if (tokens.Length != 3)
+                return null;
+            if (string.Equals(tokens[2], "all", StringComparison.OrdinalIgnoreCase))
+                return null;
+        }
+        else if ((isEquipmentRoute || isDecipherRoute) && tokens.Length == 4)
+        {
+            // The inventory object ID is the first argument; the final argument is a slot or decipher value.
+        }
+        else
+        {
+            return null;
+        }
+
+        return inventoryItemExists(inventoryCategory, tokens[2])
+            ? null
+            : tokens[2] + " is not a valid " + displayCategory + " ID, please use list subcommand";
+    }
+
+    /// <summary>Looks up an item in the matching live inventory registry.</summary>
+    private static bool IsInventoryItemRegistered(string category, string id)
+    {
+        switch (category)
+        {
+            case "relic":
+                return Core.InventoryManager.GetRelic(id) != null;
+            case "questitem":
+                return Core.InventoryManager.GetQuestItem(id) != null;
+            case "collectible":
+                return Core.InventoryManager.GetCollectibleItem(id) != null;
+            case "bead":
+                return Core.InventoryManager.GetRosaryBead(id) != null;
+            case "prayer":
+                return Core.InventoryManager.GetPrayer(id) != null;
+            case "sword":
+                return Core.InventoryManager.GetSword(id) != null;
+            default:
+                return false;
+        }
     }
 
     private static bool CanParseEnum(Type enumType, string value)
@@ -685,7 +806,7 @@ internal static class ConsoleWidget_ProcessCommand_Patch
     /// <returns><see langword="true"/> to run the original method; otherwise, <see langword="false"/>.</returns>
     private static bool Prefix(ConsoleWidget __instance, string rawText)
     {
-        return StrictCommandRuntime.Process(__instance, rawText);
+        return StrictCommandRuntime.Process(__instance, rawText, out _);
     }
 }
 

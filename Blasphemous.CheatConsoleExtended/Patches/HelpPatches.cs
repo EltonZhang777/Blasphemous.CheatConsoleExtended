@@ -3,6 +3,7 @@ using Framework.Managers;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
 using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using Tools.DataContainer;
 
@@ -37,12 +38,24 @@ internal static class Help_RenderCommandCatalog_Patch
             return false;
         }
 
-        if (parameters.Length == 1 && StrictCommandRuntime.TryShowCommandHelp(console, parameters[0]))
+        DispatchCommandHelp(
+            parameters,
+            targetName => StrictCommandRuntime.TryShowCommandHelp(console, targetName),
+            message => console.Write(message));
+        return false;
+    }
+
+    internal static bool DispatchCommandHelp(
+        string[] parameters,
+        Func<string, bool> tryShowCommandHelp,
+        Action<string> writeUnavailable)
+    {
+        if (parameters != null && parameters.Length == 1 && tryShowCommandHelp(parameters[0]))
         {
-            return false;
+            return true;
         }
 
-        console.Write("Command-specific help is unavailable. Use Help for the full command list.");
+        writeUnavailable("Command-specific help is unavailable. Use Help for the full command list.");
         return false;
     }
 
