@@ -3,24 +3,61 @@ using System.Collections.Generic;
 
 namespace Blasphemous.CheatConsoleExtended;
 
+/// <summary>Describes the inclusive range of arguments accepted by a command route.</summary>
+internal readonly struct ArgumentCountRange
+{
+    public ArgumentCountRange(int minimum, int maximum)
+    {
+        Minimum = minimum;
+        Maximum = maximum;
+    }
+
+    public int Minimum { get; }
+
+    public int Maximum { get; }
+
+    public bool Includes(int count) => count >= Minimum && count <= Maximum;
+}
+
 /// <summary>Describes a command name, its optional executable value, and its supported subcommands.</summary>
 internal sealed class CommandDefinition
 {
     /// <summary>Creates a command definition with no executable value or subcommands.</summary>
-    public CommandDefinition(string name) : this(name, null, null) { }
+    public CommandDefinition(string name) : this(name, null, null, null, false) { }
 
     /// <summary>Creates a command definition with the specified subcommands and no executable value.</summary>
-    public CommandDefinition(string name, IEnumerable<string> subcommands) : this(name, subcommands, null) { }
+    public CommandDefinition(string name, IEnumerable<string> subcommands) : this(name, subcommands, null, null, false) { }
 
     /// <summary>Creates a command definition with optional subcommands and an associated executable value.</summary>
     /// <param name="value">The command object used for dispatch; <see langword="null"/> marks an internal console command.</param>
     internal CommandDefinition(string name, IEnumerable<string> subcommands, object value)
+        : this(name, subcommands, value, null, false) { }
+
+    /// <summary>Creates a command definition with optional argument-count validation.</summary>
+    /// <param name="name">The exact command name.</param>
+    /// <param name="subcommands">The supported subcommands, if any.</param>
+    /// <param name="value">The command object used for dispatch; <see langword="null"/> marks an internal console command.</param>
+    /// <param name="argumentCounts">The accepted argument-count ranges by route, or <see langword="null"/> to skip count validation.</param>
+    /// <param name="allowUnlistedArgumentCounts">Whether recognized routes without a count rule accept their arguments.</param>
+    /// <param name="argumentValidator">An optional validator for argument values after route and count validation.</param>
+    internal CommandDefinition(
+        string name,
+        IEnumerable<string> subcommands,
+        object value,
+        IDictionary<string, ArgumentCountRange> argumentCounts,
+        bool allowUnlistedArgumentCounts = false,
+        Func<string[], bool> argumentValidator = null)
     {
         Name = name;
         Value = value;
         Subcommands = [];
         if (subcommands != null)
             Subcommands.AddRange(subcommands);
+        ArgumentCounts = argumentCounts == null
+            ? null
+            : new Dictionary<string, ArgumentCountRange>(argumentCounts, StringComparer.OrdinalIgnoreCase);
+        AllowUnlistedArgumentCounts = allowUnlistedArgumentCounts;
+        ArgumentValidator = argumentValidator;
     }
 
     public string Name { get; }
@@ -28,18 +65,22 @@ internal sealed class CommandDefinition
     public object Value { get; }
 
     public List<string> Subcommands { get; }
+
+    internal Dictionary<string, ArgumentCountRange> ArgumentCounts { get; }
+
+    internal bool AllowUnlistedArgumentCounts { get; }
+
+    internal Func<string[], bool> ArgumentValidator { get; }
 }
 
 /// <summary>Provides exact command matching, dispatch decisions, and edit-distance-based suggestions.</summary>
 internal static class StrictCommandResolver
 {
-    /// <summary>Splits an input line into whitespace-separated tokens after trimming it and removing carriage returns.</summary>
+    /// <summary>Splits an input line on ordinary spaces like the vanilla parser, retaining empty tokens.</summary>
     public static string[] Tokenize(string rawText)
     {
-        string text = (rawText ?? string.Empty).Replace("\r", string.Empty).Trim();
-        return text.Length == 0
-            ? []
-            : text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+        string text = (rawText ?? string.Empty).Replace("\r", string.Empty);
+        return text.Trim().Length == 0 ? [] : text.Split(' ');
     }
 
     /// <summary>Finds the first command whose name exactly matches the token, ignoring case.</summary>
@@ -58,7 +99,14 @@ internal static class StrictCommandResolver
         return null;
     }
 
-    /// <summary>Determines whether an exact command and, when required, its first subcommand can run.</summary>
+    /// <summary>Determines whether raw input parsed like the vanilla parser selects a runnable exact command.</summary>
+    /// <returns><see langword="true"/> when the vanilla handler should execute the input; otherwise, <see langword="false"/>.</returns>
+    public static bool ShouldRunOriginal(string rawText, IList<CommandDefinition> commands)
+    {
+        return ShouldRunOriginal(Tokenize(rawText), commands);
+    }
+
+    /// <summary>Determines whether an exact command, its first subcommand, and its argument count can run.</summary>
     /// <returns><see langword="true"/> when the vanilla handler should execute the input; otherwise, <see langword="false"/>.</returns>
     public static bool ShouldRunOriginal(string[] tokens, IList<CommandDefinition> commands)
     {
@@ -72,9 +120,65 @@ internal static class StrictCommandResolver
         if (command == null || command.Value == null)
             return false;
 
-        return tokens.Length == 1
-            || command.Subcommands.Count == 0
-            || FindExactSubcommand(command, tokens[1]) != null;
+        if (tokens.Length > 1 && command.Subcommands.Count > 0 && FindExactSubcommand(command, tokens[1]) == null)
+            return false;
+
+        return HasValidArgumentCount(command, tokens);
+    }
+
+    /// <summary>Checks the selected command route against its registered argument-count range.</summary>
+    private static bool HasValidArgumentCount(CommandDefinition command, string[] tokens)
+    {
+        if (command.ArgumentCounts == null)
+            return true;
+
+        string route;
+        int argumentCount;
+        if (command.Subcommands.Count == 0)
+        {
+            route = string.Empty;
+            argumentCount = tokens.Length - 1;
+        }
+        else if (tokens.Length == 1)
+        {
+            route = "help";
+            argumentCount = 0;
+        }
+        else
+        {
+            route = FindExactSubcommand(command, tokens[1]);
+            argumentCount = tokens.Length - 2;
+        }
+
+        if (!command.ArgumentCounts.TryGetValue(route, out ArgumentCountRange range))
+        {
+            return command.AllowUnlistedArgumentCounts
+                && (command.ArgumentValidator == null || command.ArgumentValidator(tokens));
+        }
+
+        if (!range.Includes(argumentCount) || !HasValidArgumentShape(command, tokens))
+            return false;
+
+        return command.ArgumentValidator == null || command.ArgumentValidator(tokens);
+    }
+
+    /// <summary>Rejects invalid argument shapes that the vanilla handler would otherwise silently accept.</summary>
+    private static bool HasValidArgumentShape(CommandDefinition command, string[] tokens)
+    {
+        if (string.Equals(command.Name, "map", StringComparison.OrdinalIgnoreCase)
+            && tokens.Length == 4
+            && string.Equals(tokens[1], "secret", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(tokens[3], "on", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tokens[3], "off", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tokens[3], "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tokens[3], "false", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return !string.Equals(command.Name, "kill", StringComparison.OrdinalIgnoreCase)
+            || tokens.Length != 3
+            || (string.Equals(tokens[1], "player", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(tokens[2], "prieudieu", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Determines whether a one-token input exactly names an internal console command.</summary>
@@ -127,6 +231,20 @@ internal static class StrictCommandResolver
         }
 
         return null;
+    }
+
+    /// <summary>Finds a command with a supported, zero-argument Help subcommand.</summary>
+    /// <returns>The exact target command when its Help route is safe, or <see langword="null"/> otherwise.</returns>
+    public static CommandDefinition FindSafeHelpCommand(string targetName, IList<CommandDefinition> commands)
+    {
+        CommandDefinition command = FindExact(targetName, commands);
+        if (command == null || command.Value == null || command.ArgumentCounts == null
+            || FindExactSubcommand(command, "help") == null)
+            return null;
+
+        return command.ArgumentCounts.TryGetValue("help", out ArgumentCountRange range) && range.Includes(0)
+            ? command
+            : null;
     }
 
     /// <summary>Returns the closest matching subcommands qualified by their parent command name.</summary>
