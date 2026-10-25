@@ -1,7 +1,7 @@
-using System;
 using Blasphemous.ModdingAPI;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
+using System;
 
 namespace Blasphemous.CheatConsoleExtended;
 
@@ -58,10 +58,7 @@ public static class CheatConsoleController
     /// <exception cref="InvalidOperationException">The console widget has not been initialized.</exception>
     public static void SetConsoleOpen(bool open)
     {
-        ConsoleWidget console = ConsoleWidget.Instance;
-        if (console == null)
-            throw new InvalidOperationException("The console widget is not available yet.");
-
+        ConsoleWidget console = ConsoleWidget.Instance ?? throw new InvalidOperationException("The console widget is not available yet.");
         int previousApiDepth = EnterApiAccess();
         try
         {
@@ -278,8 +275,7 @@ public static class CheatConsoleController
     {
         const string message = "Error: Player command rejected because user access is disabled.";
         console.Write(message);
-        if (console.scrollRect != null)
-            console.scrollRect.verticalNormalizedPosition = 0f;
+        console.scrollRect?.verticalNormalizedPosition = 0f;
         ModLog.Error("Cheat Console: " + message);
     }
 

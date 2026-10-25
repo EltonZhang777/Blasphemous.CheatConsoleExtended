@@ -599,10 +599,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
     {
         private static MethodBase TargetMethod()
         {
-            Type patchType = AccessTools.TypeByName("Blasphemous.CheatConsole.ConsoleWidget_Update_Patch");
-            if (patchType == null)
-                throw new TypeLoadException("Blasphemous.CheatConsole.ConsoleWidget_Update_Patch was not found.");
-
+            Type patchType = AccessTools.TypeByName("Blasphemous.CheatConsole.ConsoleWidget_Update_Patch") ?? throw new TypeLoadException("Blasphemous.CheatConsole.ConsoleWidget_Update_Patch was not found.");
             return AccessTools.Method(patchType, "Postfix", [typeof(ConsoleWidget), typeof(bool)])
                 ?? throw new MissingMethodException(patchType.FullName, "Postfix");
         }
