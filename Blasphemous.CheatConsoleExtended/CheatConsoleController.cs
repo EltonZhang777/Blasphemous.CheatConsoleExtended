@@ -91,6 +91,10 @@ public static class CheatConsoleController
         return true;
     }
 
+    /// <summary>Determines whether a request to change the console state is allowed.</summary>
+    /// <param name="console">The console widget receiving the request.</param>
+    /// <param name="open">Whether the request opens or closes the console.</param>
+    /// <returns>True when the request is allowed; otherwise, false.</returns>
     internal static bool CanSetConsoleOpen(ConsoleWidget console, bool open)
     {
         bool isPlayerOpenRequest = open
@@ -104,6 +108,9 @@ public static class CheatConsoleController
         return !open || isPlayerOpenRequest || _isApiEnabled;
     }
 
+    /// <summary>Captures an unconsumed player request to open the specified console.</summary>
+    /// <param name="console">The console widget receiving the request.</param>
+    /// <returns>True when the request was captured; otherwise, false.</returns>
     internal static bool TryCapturePlayerOpenRequest(ConsoleWidget console)
     {
         if (console == null
@@ -116,6 +123,10 @@ public static class CheatConsoleController
         return true;
     }
 
+    /// <summary>Begins tracking a player submission and determines whether it may proceed.</summary>
+    /// <param name="console">The console receiving the submission.</param>
+    /// <param name="previousSubmissionDepth">Receives the submission depth to restore when processing ends.</param>
+    /// <returns>True when the submission may proceed; otherwise, false.</returns>
     internal static bool BeginPlayerSubmission(ConsoleWidget console, out int previousSubmissionDepth)
     {
         previousSubmissionDepth = _playerSubmissionDepth;
@@ -138,11 +149,17 @@ public static class CheatConsoleController
         return false;
     }
 
+    /// <summary>Restores the submission depth saved by <see cref="BeginPlayerSubmission"/>.</summary>
+    /// <param name="previousSubmissionDepth">The submission depth to restore.</param>
     internal static void EndPlayerSubmission(int previousSubmissionDepth)
     {
         _playerSubmissionDepth = previousSubmissionDepth;
     }
 
+    /// <summary>Determines whether a command may execute and tracks player-originated execution.</summary>
+    /// <param name="console">The console processing the command.</param>
+    /// <param name="previousCommandDepth">Receives the command depth to restore when execution ends.</param>
+    /// <returns>True when command execution is allowed; otherwise, false.</returns>
     internal static bool BeginCommandExecution(ConsoleWidget console, out int previousCommandDepth)
     {
         previousCommandDepth = _playerCommandDepth;
@@ -165,11 +182,16 @@ public static class CheatConsoleController
         return true;
     }
 
+    /// <summary>Restores the command depth saved by <see cref="BeginCommandExecution"/>.</summary>
+    /// <param name="previousCommandDepth">The command depth to restore.</param>
     internal static void EndCommandExecution(int previousCommandDepth)
     {
         _playerCommandDepth = previousCommandDepth;
     }
 
+    /// <summary>Processes a submitted command while preserving its player-input context.</summary>
+    /// <param name="console">The console processing the command.</param>
+    /// <param name="command">The command text to process.</param>
     internal static void ProcessCommandFromSubmit(ConsoleWidget console, string command)
     {
         int previousPlayerDepth = _playerInputDepth;
@@ -186,6 +208,10 @@ public static class CheatConsoleController
         }
     }
 
+    /// <summary>Executes a parsed console command while preserving its player-input context.</summary>
+    /// <param name="command">The parsed console command to execute.</param>
+    /// <param name="name">The command name.</param>
+    /// <param name="parameters">The command parameters.</param>
     internal static void ExecuteConsoleCommandFromParser(ConsoleCommand command, string name, string[] parameters)
     {
         int previousPlayerDepth = _playerInputDepth;
@@ -209,6 +235,10 @@ public static class CheatConsoleController
         }
     }
 
+    /// <summary>Executes a shared command while preserving its player-input context.</summary>
+    /// <param name="command">The shared-command handler.</param>
+    /// <param name="name">The shared command name.</param>
+    /// <returns>True when the shared command handled the name; otherwise, false.</returns>
     internal static bool ExecuteSharedCommandFromParser(SharedCommandsCommand command, string name)
     {
         int previousPlayerDepth = _playerInputDepth;
@@ -230,6 +260,9 @@ public static class CheatConsoleController
         }
     }
 
+    /// <summary>Changes the console state while marking the request as player input.</summary>
+    /// <param name="console">The console widget to change.</param>
+    /// <param name="open">Whether to open or close the console.</param>
     internal static void SetEnabledFromPlayerInput(ConsoleWidget console, bool open)
     {
         ConsoleWidget previousPlayerOpenRequest = _playerOpenRequest;
@@ -251,6 +284,8 @@ public static class CheatConsoleController
         }
     }
 
+    /// <summary>Submits the current console input while marking it as player input.</summary>
+    /// <param name="console">The console widget submitting its input.</param>
     internal static void SubmitFromPlayerInput(ConsoleWidget console)
     {
         int previousPlayerDepth = EnterPlayerInput();
@@ -264,6 +299,8 @@ public static class CheatConsoleController
         }
     }
 
+    /// <summary>Consumes the pending input marker and reports whether it represents player input.</summary>
+    /// <returns>True when the pending input came from the player; otherwise, false.</returns>
     private static bool ConsumePlayerInput()
     {
         bool isPlayerInput = _playerInputDepth > 0 && _apiAccessDepth == 0;
@@ -271,6 +308,8 @@ public static class CheatConsoleController
         return isPlayerInput;
     }
 
+    /// <summary>Reports that a player command was rejected to the console and mod log.</summary>
+    /// <param name="console">The console to receive the rejection message.</param>
     private static void ReportUserCommandRejected(ConsoleWidget console)
     {
         const string message = "Error: Player command rejected because user access is disabled.";
@@ -279,6 +318,8 @@ public static class CheatConsoleController
         ModLog.Error("Cheat Console: " + message);
     }
 
+    /// <summary>Marks the current operation as player input.</summary>
+    /// <returns>The previous player-input depth.</returns>
     private static int EnterPlayerInput()
     {
         int previousDepth = _playerInputDepth;
@@ -286,6 +327,8 @@ public static class CheatConsoleController
         return previousDepth;
     }
 
+    /// <summary>Marks the current operation as programmatic API access.</summary>
+    /// <returns>The previous API-access depth.</returns>
     private static int EnterApiAccess()
     {
         int previousDepth = _apiAccessDepth;
