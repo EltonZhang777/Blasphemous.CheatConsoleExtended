@@ -13,7 +13,7 @@ internal static class VanillaConsoleOutputLocalizer
 {
     internal const int ExpectedTemplateCount = 417;
 
-    private static readonly Regex PlaceholderPattern = new Regex(
+    private static readonly Regex PlaceholderPattern = new(
         @"\{(?<index>\d+)(?:,[^}:]*)?(?::[^}]*)?\}",
         RegexOptions.CultureInvariant);
 
@@ -29,7 +29,7 @@ internal static class VanillaConsoleOutputLocalizer
     /// <summary>Captures the prior nested command scope and disables localization during resolution.</summary>
     internal static ProcessCommandScope BeginProcessCommand()
     {
-        ProcessCommandScope scope = new ProcessCommandScope(outputEnabled, suppressRecursiveOutput);
+        ProcessCommandScope scope = new(outputEnabled, suppressRecursiveOutput);
         outputEnabled = false;
         return scope;
     }
@@ -118,7 +118,7 @@ internal static class VanillaConsoleOutputLocalizer
     }
 
     /// <summary>Stores the nesting state required to restore localization after a ProcessCommand call.</summary>
-    internal struct ProcessCommandScope
+    internal readonly struct ProcessCommandScope
     {
         internal ProcessCommandScope(bool previousOutputEnabled, bool previousRecursiveSuppression)
         {
@@ -144,7 +144,7 @@ internal static class VanillaConsoleOutputLocalizer
             _templatesByKey = new Dictionary<string, Template>(StringComparer.Ordinal);
             _templatesByEnglish = new Dictionary<string, Template>(StringComparer.Ordinal);
             _staticTemplates = new Dictionary<string, Template>(StringComparer.Ordinal);
-            _dynamicTemplates = new List<Template>();
+            _dynamicTemplates = [];
         }
 
         internal static Catalog Empty
@@ -176,7 +176,7 @@ internal static class VanillaConsoleOutputLocalizer
         /// <summary>Reads vanilla entries from the English section while preserving source boundary spaces.</summary>
         internal static Catalog Load(IEnumerable<string> lines)
         {
-            Catalog catalog = new Catalog();
+            Catalog catalog = new();
             string language = null;
 
             if (lines == null)
@@ -208,7 +208,7 @@ internal static class VanillaConsoleOutputLocalizer
                     value = value.Substring(1);
                 value = value.Replace("\\n", "\n");
 
-                Template template = new Template(key, value);
+                Template template = new(key, value);
                 if (catalog._templatesByKey.ContainsKey(key))
                     throw new InvalidOperationException("Duplicate vanilla output key: " + key);
                 if (catalog._templatesByEnglish.ContainsKey(value))
@@ -255,7 +255,7 @@ internal static class VanillaConsoleOutputLocalizer
                         return message;
                 }
 
-                Dictionary<int, string> arguments = new Dictionary<int, string>();
+                Dictionary<int, string> arguments = [];
                 for (int i = 0; i < template.ArgumentIndices.Count; i++)
                 {
                     arguments[template.ArgumentIndices[i]] = greedyMatch.Groups[template.GroupNames[i]].Value;
@@ -314,14 +314,13 @@ internal static class VanillaConsoleOutputLocalizer
                 return false;
             }
 
-            StringBuilder builder = new StringBuilder(template.Length);
-            List<int> usedArguments = new List<int>();
+            StringBuilder builder = new(template.Length);
+            List<int> usedArguments = [];
             int position = 0;
 
             foreach (Match match in matches)
             {
-                int argumentIndex;
-                if (!int.TryParse(match.Groups["index"].Value, out argumentIndex)
+                if (!int.TryParse(match.Groups["index"].Value, out int argumentIndex)
                     || !arguments.ContainsKey(argumentIndex))
                 {
                     result = template;
@@ -366,8 +365,8 @@ internal static class VanillaConsoleOutputLocalizer
         {
             Key = key;
             English = english;
-            ArgumentIndices = new List<int>();
-            GroupNames = new List<string>();
+            ArgumentIndices = [];
+            GroupNames = [];
 
             int leadingLength = 0;
             while (leadingLength < english.Length && char.IsWhiteSpace(english[leadingLength]))
@@ -379,8 +378,8 @@ internal static class VanillaConsoleOutputLocalizer
                 trailingStart--;
             TrailingWhitespace = english.Substring(trailingStart);
 
-            StringBuilder greedyPattern = new StringBuilder("^");
-            StringBuilder lazyPattern = new StringBuilder("^");
+            StringBuilder greedyPattern = new("^");
+            StringBuilder lazyPattern = new("^");
             int sourcePosition = 0;
             MatchCollection placeholders = PlaceholderPattern.Matches(english);
             int groupIndex = 0;
@@ -415,7 +414,7 @@ internal static class VanillaConsoleOutputLocalizer
 
         internal string CreateRenderedSample()
         {
-            StringBuilder sample = new StringBuilder(English.Length);
+            StringBuilder sample = new(English.Length);
             MatchCollection placeholders = PlaceholderPattern.Matches(English);
             int sourcePosition = 0;
 

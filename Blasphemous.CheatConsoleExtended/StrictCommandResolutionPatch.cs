@@ -285,7 +285,7 @@ internal static class ConsoleWidget_ProcessCommand_Patch
         __state = VanillaConsoleOutputLocalizer.BeginProcessCommand();
         bool runOriginal = StrictCommandRuntime.Process(__instance, rawText, out ConsoleCommand command);
         if (runOriginal)
-            VanillaConsoleOutputLocalizer.SelectCommand(command == null ? null : command.GetType());
+            VanillaConsoleOutputLocalizer.SelectCommand(command?.GetType());
         return runOriginal;
     }
 
