@@ -21,8 +21,9 @@ internal static class StrictCommandRuntime
 
     /// <summary>Processes an input line and determines whether the original console handler should continue.</summary>
     /// <returns><see langword="true"/> when the original handler should run; otherwise, <see langword="false"/>.</returns>
-    internal static bool Process(ConsoleWidget console, string rawText)
+    internal static bool Process(ConsoleWidget console, string rawText, out ConsoleCommand resolvedCommand)
     {
+        resolvedCommand = null;
         string[] tokens = StrictCommandResolver.Tokenize(rawText);
         if (tokens.Length == 0)
             return false;
@@ -40,7 +41,10 @@ internal static class StrictCommandRuntime
 
         CommandDefinition command = StrictCommandResolver.FindExact(tokens[0], catalog);
         if (StrictCommandResolver.ShouldRunOriginal(tokens, catalog))
+        {
+            resolvedCommand = command == null ? null : command.Value as ConsoleCommand;
             return true;
+        }
 
         console.Write("Command not found. Use Help for more information.");
         if (command == null)
@@ -275,31 +279,51 @@ internal static class ConsoleWidget_ProcessCommand_Patch
 {
     /// <summary>Handles the input through the strict resolver and controls whether the original method runs.</summary>
     /// <returns><see langword="true"/> to run the original method; otherwise, <see langword="false"/>.</returns>
-    private static bool Prefix(ConsoleWidget __instance, string rawText, out int __state)
+    private struct ProcessCommandState
     {
-        if (!CheatConsoleController.BeginCommandExecution(__instance, out __state))
+        internal int PreviousCommandDepth;
+        internal VanillaConsoleOutputLocalizer.ProcessCommandScope OutputScope;
+
+        internal ProcessCommandState(VanillaConsoleOutputLocalizer.ProcessCommandScope outputScope)
         {
-            CheatConsoleController.EndCommandExecution(__state);
+            PreviousCommandDepth = 0;
+            OutputScope = outputScope;
+        }
+    }
+
+    private static bool Prefix(
+        ConsoleWidget __instance,
+        string rawText,
+        out ProcessCommandState __state)
+    {
+        __state = new ProcessCommandState(VanillaConsoleOutputLocalizer.BeginProcessCommand());
+        if (!CheatConsoleController.BeginCommandExecution(__instance, out __state.PreviousCommandDepth))
+        {
+            CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
             return false;
         }
 
         try
         {
-            bool runOriginal = StrictCommandRuntime.Process(__instance, rawText);
-            if (!runOriginal)
-                CheatConsoleController.EndCommandExecution(__state);
+            bool runOriginal = StrictCommandRuntime.Process(__instance, rawText, out ConsoleCommand command);
+            if (runOriginal)
+                VanillaConsoleOutputLocalizer.SelectCommand(command?.GetType());
+            else
+                CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
             return runOriginal;
         }
         catch
         {
-            CheatConsoleController.EndCommandExecution(__state);
+            CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
             throw;
         }
     }
 
-    private static Exception Finalizer(Exception __exception, int __state)
+    /// <summary>Restores command-access and output-localization state after command processing.</summary>
+    private static Exception Finalizer(Exception __exception, ProcessCommandState __state)
     {
-        CheatConsoleController.EndCommandExecution(__state);
+        CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
+        VanillaConsoleOutputLocalizer.EndProcessCommand(__state.OutputScope);
         return __exception;
     }
 

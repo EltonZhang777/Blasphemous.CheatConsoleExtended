@@ -355,6 +355,12 @@ namespace Blasphemous.CheatConsoleExtended
     [HarmonyPatch(typeof(ConsoleWidget), "Write")]
     internal static class ConsoleWidget_Write_Patch
     {
+        /// <summary>Localizes eligible vanilla output before the console and Unity log receive it.</summary>
+        internal static void Prefix(ref string message)
+        {
+            message = VanillaConsoleOutputLocalizer.PrepareOutputForWrite(message);
+        }
+
         /// <summary>Routes console text assignments through the output-coloring handler.</summary>
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
