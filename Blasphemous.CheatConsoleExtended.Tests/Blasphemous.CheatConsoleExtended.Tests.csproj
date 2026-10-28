@@ -18,6 +18,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\resources\localization\Cheat Console Extended.txt"
+          Link="resources\localization\Cheat Console Extended.txt"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Blasphemous.CheatConsoleExtended\Blasphemous.CheatConsoleExtended.csproj"
                       AdditionalProperties="SkipGameProfileDeployment=true" />
   </ItemGroup>

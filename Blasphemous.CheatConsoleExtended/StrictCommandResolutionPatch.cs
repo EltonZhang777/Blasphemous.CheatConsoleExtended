@@ -19,8 +19,9 @@ internal static class StrictCommandRuntime
 
     /// <summary>Processes an input line and determines whether the original console handler should continue.</summary>
     /// <returns><see langword="true"/> when the original handler should run; otherwise, <see langword="false"/>.</returns>
-    internal static bool Process(ConsoleWidget console, string rawText)
+    internal static bool Process(ConsoleWidget console, string rawText, out ConsoleCommand resolvedCommand)
     {
+        resolvedCommand = null;
         string[] tokens = StrictCommandResolver.Tokenize(rawText);
         if (tokens.Length == 0)
             return false;
@@ -38,7 +39,10 @@ internal static class StrictCommandRuntime
 
         CommandDefinition command = StrictCommandResolver.FindExact(tokens[0], catalog);
         if (StrictCommandResolver.ShouldRunOriginal(tokens, catalog))
+        {
+            resolvedCommand = command == null ? null : command.Value as ConsoleCommand;
             return true;
+        }
 
         console.Write("Command not found. Use Help for more information.");
         if (command == null)
@@ -273,9 +277,25 @@ internal static class ConsoleWidget_ProcessCommand_Patch
 {
     /// <summary>Handles the input through the strict resolver and controls whether the original method runs.</summary>
     /// <returns><see langword="true"/> to run the original method; otherwise, <see langword="false"/>.</returns>
-    private static bool Prefix(ConsoleWidget __instance, string rawText)
+    private static bool Prefix(
+        ConsoleWidget __instance,
+        string rawText,
+        out VanillaConsoleOutputLocalizer.ProcessCommandScope __state)
     {
-        return StrictCommandRuntime.Process(__instance, rawText);
+        __state = VanillaConsoleOutputLocalizer.BeginProcessCommand();
+        bool runOriginal = StrictCommandRuntime.Process(__instance, rawText, out ConsoleCommand command);
+        if (runOriginal)
+            VanillaConsoleOutputLocalizer.SelectCommand(command?.GetType());
+        return runOriginal;
+    }
+
+    /// <summary>Restores output-localization state after nested and top-level command processing.</summary>
+    private static Exception Finalizer(
+        Exception __exception,
+        VanillaConsoleOutputLocalizer.ProcessCommandScope __state)
+    {
+        VanillaConsoleOutputLocalizer.EndProcessCommand(__state);
+        return __exception;
     }
 }
 
