@@ -415,6 +415,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
     [HarmonyPatch(typeof(ConsoleWidget), "Update")]
     internal static class ConsoleWidget_Update_PlayerToggle_Patch
     {
+        /// <summary>Routes the vanilla console toggle through the asynchronous open handler.</summary>
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
@@ -425,6 +426,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
     [HarmonyPatch]
     internal static class CheatConsole_Update_PlayerToggle_Patch
     {
+        /// <summary>Finds the CheatConsole patch method that handles the console player toggle.</summary>
         private static MethodBase TargetMethod()
         {
             Type patchType = typeof(Blasphemous.CheatConsole.CommandRegister).Assembly.GetType(
@@ -433,6 +435,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             return FindPatchTarget(patchType);
         }
 
+        /// <summary>Finds the Postfix that receives the console and enabled state from the supplied patch type.</summary>
         internal static MethodInfo FindPatchTarget(Type patchType)
         {
             return patchType?.GetMethod(
@@ -443,6 +446,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                 null);
         }
 
+        /// <summary>Enables this patch only when the controller does not already handle player input.</summary>
         private static bool Prepare()
         {
             return ShouldPatch(
@@ -450,11 +454,13 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                 ConsoleWidget_SetEnabled_Async_Patch.HasControllerPlayerInputRoute);
         }
 
+        /// <summary>Reports whether a target exists and needs this fallback player-input patch.</summary>
         internal static bool ShouldPatch(MethodBase targetMethod, bool hasControllerPlayerInputRoute)
         {
             return targetMethod != null && !hasControllerPlayerInputRoute;
         }
 
+        /// <summary>Routes the configured console hotkey through the asynchronous open handler.</summary>
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
@@ -466,6 +472,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
 
     internal sealed class PendingConsoleOpen
     {
+        /// <summary>Initializes a pending open request from its input source.</summary>
         internal PendingConsoleOpen(bool isPlayerToggle)
         {
             ShouldOpen = true;
@@ -475,6 +482,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         internal bool ShouldOpen { get; private set; }
         internal bool HasPlayerToggle { get; private set; }
 
+        /// <summary>Updates the pending state for a player toggle or programmatic open request.</summary>
         internal void RecordRequest(bool isPlayerToggle)
         {
             if (!isPlayerToggle)
@@ -497,6 +505,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         private readonly HashSet<object> _consolesWithUnknownBinding = [];
         private int _frameCount = int.MinValue;
 
+        /// <summary>Registers a console toggle once per frame, coalescing duplicate keys and unknown bindings.</summary>
         internal bool TryRegister(object console, int currentFrame, KeyCode? key)
         {
             if (_frameCount != currentFrame)
@@ -548,6 +557,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
 
         internal static bool HasControllerPlayerInputRoute => setEnabledFromPlayerInput != null;
 
+        /// <summary>Defers console activation by one frame and coalesces duplicate open requests.</summary>
         [HarmonyPrefix]
         private static bool Prefix(ConsoleWidget __instance, bool enabled)
         {
@@ -572,6 +582,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             return false;
         }
 
+        /// <summary>Opens the console on the next frame if a valid pending request remains.</summary>
         private static IEnumerator OpenNextFrame(ConsoleWidget console)
         {
             // shortcut: activation still runs on Unity's main thread; split it only if the in-game check still stalls.
@@ -600,12 +611,14 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             }
         }
 
+        /// <summary>Routes the vanilla player toggle through the marker using the controller route when available.</summary>
         internal static IEnumerable<CodeInstruction> RoutePlayerToggleThroughMarker(
             IEnumerable<CodeInstruction> instructions)
         {
             return RoutePlayerToggleThroughMarker(instructions, setEnabledFromPlayerInput);
         }
 
+        /// <summary>Routes the player toggle through a marker using the supplied controller route.</summary>
         internal static IEnumerable<CodeInstruction> RoutePlayerToggleThroughMarker(
             IEnumerable<CodeInstruction> instructions,
             MethodInfo controllerRoute)
@@ -613,6 +626,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             return RoutePlayerToggleThroughMarker(instructions, controllerRoute, configuredHotkey: false);
         }
 
+        /// <summary>Routes the configured-hotkey toggle through the configured-input marker.</summary>
         internal static IEnumerable<CodeInstruction> RouteConfiguredPlayerToggleThroughMarker(
             IEnumerable<CodeInstruction> instructions,
             MethodInfo controllerRoute)
@@ -620,6 +634,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             return RoutePlayerToggleThroughMarker(instructions, controllerRoute, configuredHotkey: true);
         }
 
+        /// <summary>Rewrites the player-toggle call to its marker and verifies that exactly one route was found.</summary>
         private static IEnumerable<CodeInstruction> RoutePlayerToggleThroughMarker(
             IEnumerable<CodeInstruction> instructions,
             MethodInfo controllerRoute,
@@ -657,16 +672,19 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                 throw new InvalidOperationException($"Expected one player-toggle route, found {recognizedRoutes}.");
         }
 
+        /// <summary>Handles an F1 console toggle while suppressing duplicate input in the same frame.</summary>
         internal static void SetEnabledFromPlayerToggle(ConsoleWidget console, bool enabled)
         {
             SetEnabledFromPlayerToggle(console, enabled, KeyCode.F1);
         }
 
+        /// <summary>Handles a configured console-key toggle while suppressing duplicate input in the same frame.</summary>
         internal static void SetEnabledFromConfiguredPlayerToggle(ConsoleWidget console, bool enabled)
         {
             SetEnabledFromPlayerToggle(console, enabled, GetConfiguredConsoleKey());
         }
 
+        /// <summary>Suppresses duplicate same-frame toggles before invoking the controller route or console setter.</summary>
         private static void SetEnabledFromPlayerToggle(ConsoleWidget console, bool enabled, KeyCode? inputKey)
         {
             if (!playerToggleFrameTracker.TryRegister(console, Time.frameCount, inputKey))
@@ -687,6 +705,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             }
         }
 
+        /// <summary>Reads the configured console key, or returns null when the binding cannot be resolved.</summary>
         private static KeyCode? GetConfiguredConsoleKey()
         {
             // shortcut: unknown bindings coalesce once per frame; use a public keybinding API if ModdingAPI adds one.
@@ -710,6 +729,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                     : (KeyCode?)null;
         }
 
+        /// <summary>Reports whether the pending console-open request originated from player input.</summary>
         private static bool CapturePlayerOpenRequest(ConsoleWidget console)
         {
             return playerToggleInProgress.Contains(console)
@@ -717,6 +737,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                     && (bool)capturePlayerOpenRequest.Invoke(null, new object[] { console }));
         }
 
+        /// <summary>Opens the console through the player-input controller route when one is available.</summary>
         private static void OpenFromPlayerInput(ConsoleWidget console)
         {
             if (setEnabledFromPlayerInput == null)
@@ -728,6 +749,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             setEnabledFromPlayerInput.Invoke(null, new object[] { console, true });
         }
 
+        /// <summary>Finds a non-public static controller method with the requested signature and return type.</summary>
         private static System.Reflection.MethodInfo FindControllerMethod(
             string methodName,
             Type returnType,
