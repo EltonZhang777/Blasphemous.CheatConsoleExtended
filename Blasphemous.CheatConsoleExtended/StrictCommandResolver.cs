@@ -4,17 +4,11 @@ using System.Collections.Generic;
 namespace Blasphemous.CheatConsoleExtended;
 
 /// <summary>Describes the inclusive range of arguments accepted by a command route.</summary>
-internal readonly struct ArgumentCountRange
+internal readonly struct ArgumentCountRange(int minimum, int maximum)
 {
-    public ArgumentCountRange(int minimum, int maximum)
-    {
-        Minimum = minimum;
-        Maximum = maximum;
-    }
+    public int Minimum { get; } = minimum;
 
-    public int Minimum { get; }
-
-    public int Maximum { get; }
+    public int Maximum { get; } = maximum;
 
     public bool Includes(int count) => count >= Minimum && count <= Maximum;
 }

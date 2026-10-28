@@ -393,23 +393,16 @@ internal static class StrictCommandRuntime
     /// <summary>Looks up an item in the matching live inventory registry.</summary>
     private static bool IsInventoryItemRegistered(string category, string id)
     {
-        switch (category)
+        return category switch
         {
-            case "relic":
-                return Core.InventoryManager.GetRelic(id) != null;
-            case "questitem":
-                return Core.InventoryManager.GetQuestItem(id) != null;
-            case "collectible":
-                return Core.InventoryManager.GetCollectibleItem(id) != null;
-            case "bead":
-                return Core.InventoryManager.GetRosaryBead(id) != null;
-            case "prayer":
-                return Core.InventoryManager.GetPrayer(id) != null;
-            case "sword":
-                return Core.InventoryManager.GetSword(id) != null;
-            default:
-                return false;
-        }
+            "relic" => Core.InventoryManager.GetRelic(id) != null,
+            "questitem" => Core.InventoryManager.GetQuestItem(id) != null,
+            "collectible" => Core.InventoryManager.GetCollectibleItem(id) != null,
+            "bead" => Core.InventoryManager.GetRosaryBead(id) != null,
+            "prayer" => Core.InventoryManager.GetPrayer(id) != null,
+            "sword" => Core.InventoryManager.GetSword(id) != null,
+            _ => false,
+        };
     }
 
     private static bool CanParseEnum(Type enumType, string value)
@@ -759,7 +752,7 @@ internal static class StrictCommandRuntime
             rules.Add(Exact("setslots", 1));
         if (decipher)
             rules.Add(Exact("decipher", 2));
-        return rules.ToArray();
+        return [.. rules];
     }
 
     /// <summary>Adds the supplied argument routes for one or more vanilla command aliases.</summary>
@@ -781,20 +774,13 @@ internal static class StrictCommandRuntime
 
     private static ArgumentCountRule Range(string route, int minimum, int maximum) => new(route, minimum, maximum);
 
-    private sealed class ArgumentCountRule
+    private sealed class ArgumentCountRule(string route, int minimum, int maximum)
     {
-        public ArgumentCountRule(string route, int minimum, int maximum)
-        {
-            Route = route;
-            Minimum = minimum;
-            Maximum = maximum;
-        }
+        public string Route { get; } = route;
 
-        public string Route { get; }
+        public int Minimum { get; } = minimum;
 
-        public int Minimum { get; }
-
-        public int Maximum { get; }
+        public int Maximum { get; } = maximum;
     }
 }
 
