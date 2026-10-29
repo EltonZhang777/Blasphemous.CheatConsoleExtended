@@ -3,6 +3,7 @@ using Framework.Managers;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
 using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using Tools.DataContainer;
 
@@ -16,21 +17,46 @@ internal static class Help_RenderCommandCatalog_Patch
     [HarmonyPrefix]
     private static bool Prefix(Help __instance, string[] parameters)
     {
-        if (parameters != null && parameters.Length > 0)
-        {
-            return true;
-        }
-
         ConsoleWidget console = TraverseUtils.GetValue<ConsoleWidget>(
             __instance,
             "Console",
             TraverseUtils.TraverseAccessType.Property);
+
+        if (parameters == null || parameters.Length == 0)
+        {
+            if (console == null)
+            {
+                return true;
+            }
+
+            WriteCatalog(console);
+            return false;
+        }
+
         if (console == null)
+        {
+            return false;
+        }
+
+        DispatchCommandHelp(
+            parameters,
+            targetName => StrictCommandRuntime.TryShowCommandHelp(console, targetName),
+            message => console.Write(message));
+        return false;
+    }
+
+    internal static bool DispatchCommandHelp(
+        string[] parameters,
+        Func<string, bool> tryShowCommandHelp,
+        Action<string> writeUnavailable)
+    {
+        // Dispatch only a single validated Help route; never reprocess the target as console input.
+        if (parameters != null && parameters.Length == 1 && tryShowCommandHelp(parameters[0]))
         {
             return true;
         }
 
-        WriteCatalog(console);
+        writeUnavailable("Command-specific help is unavailable. Use Help for the full command list.");
         return false;
     }
 
