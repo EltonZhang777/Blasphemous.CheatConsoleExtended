@@ -1,4 +1,5 @@
 using Blasphemous.CheatConsole;
+using Blasphemous.CheatConsoleExtended.Patches;
 using Blasphemous.NewbieEltonLibs.Extensions.GameLibs;
 using Framework.FrameworkCore;
 using Framework.Managers;
@@ -8,6 +9,7 @@ using HarmonyLib;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using Tools.DataContainer;
 
 namespace Blasphemous.CheatConsoleExtended;
@@ -69,7 +71,9 @@ internal static class StrictCommandRuntime
         CommandDefinition command = StrictCommandResolver.FindExact(tokens[0], catalog);
         resolvedCommand = command == null ? null : command.Value as ConsoleCommand;
         if (StrictCommandResolver.ShouldRunOriginal(rawText, catalog))
+        {
             return true;
+        }
 
         // Reject unknown item IDs with vanilla-style feedback before handlers that silently ignore them.
         string invalidInventoryItemMessage = GetInvalidInventoryItemMessage(tokens, IsInventoryItemRegistered);
@@ -836,9 +840,63 @@ internal static class ConsoleWidget_ProcessCommand_Patch
 {
     /// <summary>Handles the input through the strict resolver and controls whether the original method runs.</summary>
     /// <returns><see langword="true"/> to run the original method; otherwise, <see langword="false"/>.</returns>
-    private static bool Prefix(ConsoleWidget __instance, string rawText)
+    private struct ProcessCommandState
     {
-        return StrictCommandRuntime.Process(__instance, rawText, out _);
+        internal int PreviousCommandDepth;
+        internal VanillaConsoleOutputLocalizer.ProcessCommandScope OutputScope;
+
+        internal ProcessCommandState(VanillaConsoleOutputLocalizer.ProcessCommandScope outputScope)
+        {
+            PreviousCommandDepth = 0;
+            OutputScope = outputScope;
+        }
+    }
+
+    private static bool Prefix(
+        ConsoleWidget __instance,
+        string rawText,
+        out ProcessCommandState __state)
+    {
+        __state = new ProcessCommandState(VanillaConsoleOutputLocalizer.BeginProcessCommand());
+        if (!CheatConsoleController.BeginCommandExecution(__instance, out __state.PreviousCommandDepth))
+        {
+            CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
+            return false;
+        }
+
+        try
+        {
+            bool runOriginal = StrictCommandRuntime.Process(__instance, rawText, out ConsoleCommand command);
+            if (runOriginal)
+                VanillaConsoleOutputLocalizer.SelectCommand(command?.GetType());
+            else
+                CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
+            return runOriginal;
+        }
+        catch
+        {
+            CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
+            throw;
+        }
+    }
+
+    /// <summary>Restores command-access and output-localization state after command processing.</summary>
+    private static Exception Finalizer(Exception __exception, ProcessCommandState __state)
+    {
+        CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
+        VanillaConsoleOutputLocalizer.EndProcessCommand(__state.OutputScope);
+        return __exception;
+    }
+
+    private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        MethodInfo execute = AccessTools.Method(typeof(ConsoleCommand), nameof(ConsoleCommand.Execute), [typeof(string), typeof(string[])]);
+        MethodInfo executeFromParser = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.ExecuteConsoleCommandFromParser));
+        instructions = ConsoleWidget_PlayerInputCallSite.ReplaceCalls(instructions, execute, executeFromParser, "ConsoleWidget.ProcessCommand ConsoleCommand.Execute", 3);
+
+        MethodInfo sharedCommand = AccessTools.Method(typeof(SharedCommandsCommand), nameof(SharedCommandsCommand.ExecuteIfIsCommand), [typeof(string)]);
+        MethodInfo executeSharedCommand = AccessTools.Method(typeof(CheatConsoleController), nameof(CheatConsoleController.ExecuteSharedCommandFromParser));
+        return ConsoleWidget_PlayerInputCallSite.ReplaceCalls(instructions, sharedCommand, executeSharedCommand, "ConsoleWidget.ProcessCommand SharedCommandsCommand.ExecuteIfIsCommand", 1);
     }
 }
 
