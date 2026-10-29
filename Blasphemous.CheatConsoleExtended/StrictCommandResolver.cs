@@ -123,6 +123,7 @@ internal static class StrictCommandResolver
     /// <summary>Checks the selected command route against its registered argument-count range.</summary>
     private static bool HasValidArgumentCount(CommandDefinition command, string[] tokens)
     {
+        // Commands without a vanilla arity table keep their native argument handling.
         if (command.ArgumentCounts == null)
             return true;
 
@@ -159,6 +160,7 @@ internal static class StrictCommandResolver
     /// <summary>Rejects invalid argument shapes that the vanilla handler would otherwise silently accept.</summary>
     private static bool HasValidArgumentShape(CommandDefinition command, string[] tokens)
     {
+        // Map secret values must be explicit booleans before reaching vanilla's permissive parser.
         if (string.Equals(command.Name, "map", StringComparison.OrdinalIgnoreCase)
             && tokens.Length == 4
             && string.Equals(tokens[1], "secret", StringComparison.OrdinalIgnoreCase))
@@ -169,6 +171,7 @@ internal static class StrictCommandResolver
                 || string.Equals(tokens[3], "false", StringComparison.OrdinalIgnoreCase);
         }
 
+        // The two-argument kill form supports only the player/prieudieu target pair.
         return !string.Equals(command.Name, "kill", StringComparison.OrdinalIgnoreCase)
             || tokens.Length != 3
             || (string.Equals(tokens[1], "player", StringComparison.OrdinalIgnoreCase)

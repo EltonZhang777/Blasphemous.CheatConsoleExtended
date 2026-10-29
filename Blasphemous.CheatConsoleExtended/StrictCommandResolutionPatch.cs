@@ -70,6 +70,7 @@ internal static class StrictCommandRuntime
         if (StrictCommandResolver.ShouldRunOriginal(rawText, catalog))
             return true;
 
+        // Reject unknown item IDs with vanilla-style feedback before handlers that silently ignore them.
         string invalidInventoryItemMessage = GetInvalidInventoryItemMessage(tokens, IsInventoryItemRegistered);
         if (invalidInventoryItemMessage != null)
         {
@@ -151,9 +152,11 @@ internal static class StrictCommandRuntime
             string command = tokens[0];
             string subcommand = tokens.Length > 1 ? tokens[1] : string.Empty;
 
+            // Shared-command routes accept no extra arguments after the selected operation.
             if (string.Equals(command, "command", StringComparison.OrdinalIgnoreCase) && tokens.Length > 2)
                 return false;
 
+            // Toggle values are limited to the vanilla y/n options.
             if ((string.Equals(command, "execution", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(command, "showcursor", StringComparison.OrdinalIgnoreCase))
                 && tokens.Length == 2)
@@ -162,6 +165,7 @@ internal static class StrictCommandRuntime
                     || string.Equals(tokens[1], "n", StringComparison.OrdinalIgnoreCase);
             }
 
+            // Require defined Boss Rush course and mode enum values.
             if (string.Equals(command, "bossrush", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(subcommand, "start", StringComparison.OrdinalIgnoreCase)
                 && tokens.Length == 4)
@@ -170,6 +174,7 @@ internal static class StrictCommandRuntime
                     && CanParseEnum(typeof(BossRushManager.BossRushCourseMode), tokens[3]);
             }
 
+            // Accept only names declared by the game's game-mode enum.
             if (string.Equals(command, "gamemode", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
                 && tokens.Length == 3)
@@ -183,6 +188,7 @@ internal static class StrictCommandRuntime
                 return false;
             }
 
+            // Reject non-numeric and non-finite time scales.
             if (string.Equals(command, "timescale", StringComparison.OrdinalIgnoreCase) && tokens.Length == 2)
             {
                 return float.TryParse(tokens[1], out float timeScale)
@@ -190,6 +196,7 @@ internal static class StrictCommandRuntime
                     && !float.IsInfinity(timeScale);
             }
 
+            // Resolve achievement IDs and keep progress additions within 0–100.
             if (string.Equals(command, "achievement", StringComparison.OrdinalIgnoreCase)
                 && tokens.Length >= 3
                 && (string.Equals(subcommand, "check", StringComparison.OrdinalIgnoreCase)
@@ -204,6 +211,7 @@ internal static class StrictCommandRuntime
                         || (tokens.Length == 4 && IsWithinRange(tokens[3], 0f, 100f)));
             }
 
+            // Load only a non-empty level name present in the game's level list.
             if ((string.Equals(command, "load", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(command, "loadnoui", StringComparison.OrdinalIgnoreCase))
                 && tokens.Length == 2)
@@ -211,6 +219,7 @@ internal static class StrictCommandRuntime
                 return tokens[1].Trim().Length > 0 && levelExists(tokens[1]);
             }
 
+            // Reveal all/ng or an existing district, optionally narrowed to an existing zone.
             if (string.Equals(command, "map", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(subcommand, "reveal", StringComparison.OrdinalIgnoreCase))
             {
@@ -228,6 +237,7 @@ internal static class StrictCommandRuntime
                 return tokens.Length == 4 && mapRevealTargetExists(tokens[2], tokens[3]);
             }
 
+            // Audio levels must be normalized to the inclusive 0–1 range.
             if (string.Equals(command, "audio", StringComparison.OrdinalIgnoreCase)
                 && (string.Equals(subcommand, "master", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(subcommand, "music", StringComparison.OrdinalIgnoreCase)
@@ -238,6 +248,7 @@ internal static class StrictCommandRuntime
                 return IsWithinRange(tokens[2], 0f, 1f);
             }
 
+            // Alms amounts must be integers from 0 through 99,999.
             if (string.Equals(command, "alms", StringComparison.OrdinalIgnoreCase)
                 && (string.Equals(subcommand, "consume", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase))
@@ -246,6 +257,7 @@ internal static class StrictCommandRuntime
                 return IsWithinRange(tokens[2], 0, 99999);
             }
 
+            // Save-game indices are limited to slots 0–10.
             if (string.Equals(command, "savegame", StringComparison.OrdinalIgnoreCase)
                 && (string.Equals(subcommand, "load", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(subcommand, "save", StringComparison.OrdinalIgnoreCase))
@@ -254,6 +266,7 @@ internal static class StrictCommandRuntime
                 return IsWithinRange(tokens[2], 0, 10);
             }
 
+            // Keep stat values and upgrade levels within their supported game ranges.
             if (IsStatCommand(command) && tokens.Length == 3)
             {
                 if (string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
@@ -265,6 +278,7 @@ internal static class StrictCommandRuntime
                     return IsWithinRange(tokens[2], 0, 9999);
             }
 
+            // Relic equipment slots are limited to indices 0–2.
             if (string.Equals(command, "relic", StringComparison.OrdinalIgnoreCase))
             {
                 if (string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 4)
@@ -273,6 +287,7 @@ internal static class StrictCommandRuntime
                     return IsWithinRange(tokens[2], 0, 2);
             }
 
+            // Bound bead capacity and validate equipment slots against the current slot count.
             if (string.Equals(command, "bead", StringComparison.OrdinalIgnoreCase))
             {
                 if (string.Equals(subcommand, "setslots", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
@@ -283,6 +298,7 @@ internal static class StrictCommandRuntime
                     return IsWithinRange(tokens[2], 0, getRosaryBeadSlots() - 1);
             }
 
+            // Sword and prayer equipment use the single supported slot, index 0.
             if ((string.Equals(command, "sword", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase))
                 && string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase)
@@ -299,6 +315,7 @@ internal static class StrictCommandRuntime
                 return IsWithinRange(tokens[2], 0, 0);
             }
 
+            // Prayer deciphering accepts page values from 1 through 20.
             if (string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(subcommand, "decipher", StringComparison.OrdinalIgnoreCase)
                 && tokens.Length == 4)
@@ -369,6 +386,7 @@ internal static class StrictCommandRuntime
         bool isDecipherRoute = supportsDecipher
             && string.Equals(subcommand, "decipher", StringComparison.OrdinalIgnoreCase);
 
+        // Preserve the "all" shortcut and check IDs only on routes that consume an item ID.
         if (isAddOrRemove)
         {
             if (tokens.Length != 3)
@@ -657,6 +675,7 @@ internal static class StrictCommandRuntime
     {
         var counts = new Dictionary<string, Dictionary<string, ArgumentCountRange>>(StringComparer.OrdinalIgnoreCase);
 
+        // Match vanilla's accepted positional argument counts for direct commands and aliases.
         AddArgumentCounts(counts, ["invincible", "fervourrefill", "restart", "maxfervour", "exit"], Exact("", 0));
         AddArgumentCounts(counts, ["load"], Exact("", 1));
         AddArgumentCounts(counts, ["loadmenu"], Exact("", 0));
@@ -666,6 +685,7 @@ internal static class StrictCommandRuntime
         AddArgumentCounts(counts, ["sendevent"], Range("", 0, 1));
         AddArgumentCounts(counts, ["kill"], Range("", 0, 2));
 
+        // Declare the accepted argument count for every supported vanilla subcommand route.
         AddArgumentCounts(counts, ["achievement"],
             Exact("help", 0), Exact("enablepopup", 0), Exact("disablepopup", 0), Exact("check", 1),
             Exact("grant", 1), Exact("clear", 1), Exact("clearsteam", 1), Exact("clearall", 0),
@@ -710,6 +730,7 @@ internal static class StrictCommandRuntime
             Exact("help", 0), Exact("list", 0), Exact("listunlocked", 0), Exact("get", 0),
             Exact("set", 1), Exact("unlock", 1), Exact("lock", 1));
 
+        // Stats command aliases share these vanilla argument shapes.
         string[] variableStats = ["health", "flask", "fervour", "flaskhealth"];
         AddArgumentCounts(counts, variableStats,
             Exact("help", 0), Exact("current", 0), Exact("set", 1), Exact("reset", 0),
@@ -722,6 +743,7 @@ internal static class StrictCommandRuntime
         AddArgumentCounts(counts, ["testplan"], Exact("help", 0), Exact("1", 0));
         AddArgumentCounts(counts, ["tutorial"], Exact("help", 0), Exact("list", 0), Exact("show", 1));
 
+        // Inventory aliases reuse common routes while exposing only their supported operations.
         AddArgumentCounts(counts, ["relic"], InventoryRules(true, true, false, false));
         AddArgumentCounts(counts, ["questitem", "collectible"], InventoryRules(false, false, false, false));
         AddArgumentCounts(counts, ["bead"], InventoryRules(true, true, true, false));

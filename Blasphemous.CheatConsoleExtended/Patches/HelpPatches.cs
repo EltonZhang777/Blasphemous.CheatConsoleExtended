@@ -50,6 +50,7 @@ internal static class Help_RenderCommandCatalog_Patch
         Func<string, bool> tryShowCommandHelp,
         Action<string> writeUnavailable)
     {
+        // Dispatch only a single validated Help route; never reprocess the target as console input.
         if (parameters != null && parameters.Length == 1 && tryShowCommandHelp(parameters[0]))
         {
             return true;
