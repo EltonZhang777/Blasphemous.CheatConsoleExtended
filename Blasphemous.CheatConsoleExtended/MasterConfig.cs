@@ -4,6 +4,10 @@ namespace Blasphemous.CheatConsoleExtended;
 
 internal sealed class MasterConfig
 {
+    public bool VanillaCommandResolverModCompatibleMode { get; set; } = false;
+
+    public bool VanillaCommandResolverStrictValueChecking { get; set; } = true;
+
     public int CommandSuggestionDistance { get; set; } = 2;
 
     internal const string DefaultConsoleFont = "Consolas";

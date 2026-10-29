@@ -40,7 +40,8 @@ internal static class StrictCommandRuntime
 
                 return false;
             },
-            IsInventoryItemRegistered);
+            IsInventoryItemRegistered,
+            () => Main.CheatConsoleExtended.Config);
 
     /// <summary>Processes an input line and determines whether the original console handler should continue.</summary>
     /// <param name="console">The console receiving the command.</param>
@@ -128,7 +129,8 @@ internal static class StrictCommandRuntime
         Func<string, bool> achievementExists,
         Func<string, bool> levelExists,
         Func<string, string, bool> mapRevealTargetExists,
-        Func<string, string, bool> inventoryItemExists)
+        Func<string, string, bool> inventoryItemExists,
+        Func<MasterConfig> getConfig = null)
     {
         if (getRosaryBeadSlots == null)
             throw new ArgumentNullException(nameof(getRosaryBeadSlots));
@@ -141,10 +143,15 @@ internal static class StrictCommandRuntime
         if (inventoryItemExists == null)
             throw new ArgumentNullException(nameof(inventoryItemExists));
 
+        MasterConfig defaultConfig = MasterConfig.CreateDefault();
         return tokens =>
         {
             if (tokens == null || tokens.Length == 0)
                 return false;
+
+            MasterConfig config = getConfig?.Invoke() ?? defaultConfig;
+            bool modCompatibleMode = config.VanillaCommandResolverModCompatibleMode;
+            bool strictValueChecking = config.VanillaCommandResolverStrictValueChecking;
 
             if (GetInvalidInventoryItemMessage(tokens, inventoryItemExists) != null)
                 return false;
@@ -165,29 +172,6 @@ internal static class StrictCommandRuntime
                     || string.Equals(tokens[1], "n", StringComparison.OrdinalIgnoreCase);
             }
 
-            // Require defined Boss Rush course and mode enum values.
-            if (string.Equals(command, "bossrush", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(subcommand, "start", StringComparison.OrdinalIgnoreCase)
-                && tokens.Length == 4)
-            {
-                return CanParseEnum(typeof(BossRushManager.BossRushCourseId), tokens[2])
-                    && CanParseEnum(typeof(BossRushManager.BossRushCourseMode), tokens[3]);
-            }
-
-            // Accept only names declared by the game's game-mode enum.
-            if (string.Equals(command, "gamemode", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
-                && tokens.Length == 3)
-            {
-                string requestedName = tokens[2].ToUpperInvariant();
-                foreach (string gameModeName in Enum.GetNames(typeof(GameModeManager.GAME_MODES)))
-                {
-                    if (gameModeName.Equals(requestedName))
-                        return true;
-                }
-                return false;
-            }
-
             // Reject non-numeric and non-finite time scales.
             if (string.Equals(command, "timescale", StringComparison.OrdinalIgnoreCase) && tokens.Length == 2)
             {
@@ -196,7 +180,7 @@ internal static class StrictCommandRuntime
                     && !float.IsInfinity(timeScale);
             }
 
-            // Resolve achievement IDs and keep progress additions within 0–100.
+            // Keep achievement ID checks active even when strict numeric checks are disabled.
             if (string.Equals(command, "achievement", StringComparison.OrdinalIgnoreCase)
                 && tokens.Length >= 3
                 && (string.Equals(subcommand, "check", StringComparison.OrdinalIgnoreCase)
@@ -206,121 +190,161 @@ internal static class StrictCommandRuntime
                     || string.Equals(subcommand, "addprogress", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(subcommand, "checkprogress", StringComparison.OrdinalIgnoreCase)))
             {
-                return achievementExists(tokens[2])
-                    && (!string.Equals(subcommand, "addprogress", StringComparison.OrdinalIgnoreCase)
-                        || (tokens.Length == 4 && IsWithinRange(tokens[3], 0f, 100f)));
+                if (!achievementExists(tokens[2]))
+                    return false;
+
+                if (string.Equals(subcommand, "addprogress", StringComparison.OrdinalIgnoreCase) && tokens.Length != 4)
+                    return false;
             }
 
-            // Load only a non-empty level name present in the game's level list.
-            if ((string.Equals(command, "load", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(command, "loadnoui", StringComparison.OrdinalIgnoreCase))
-                && tokens.Length == 2)
+            if (!modCompatibleMode)
             {
-                return tokens[1].Trim().Length > 0 && levelExists(tokens[1]);
-            }
-
-            // Reveal all/ng or an existing district, optionally narrowed to an existing zone.
-            if (string.Equals(command, "map", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(subcommand, "reveal", StringComparison.OrdinalIgnoreCase))
-            {
-                if (tokens.Length == 3)
+                // These fixed vanilla domains may be extended by other mods.
+                // Require defined Boss Rush course and mode enum values.
+                if (string.Equals(command, "bossrush", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(subcommand, "start", StringComparison.OrdinalIgnoreCase)
+                    && tokens.Length == 4)
                 {
-                    if (string.Equals(tokens[2], "all", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(tokens[2], "ng", StringComparison.OrdinalIgnoreCase))
+                    return CanParseEnum(typeof(BossRushManager.BossRushCourseId), tokens[2])
+                        && CanParseEnum(typeof(BossRushManager.BossRushCourseMode), tokens[3]);
+                }
+
+                // Accept only names declared by the game's game-mode enum.
+                if (string.Equals(command, "gamemode", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
+                    && tokens.Length == 3)
+                {
+                    string requestedName = tokens[2].ToUpperInvariant();
+                    foreach (string gameModeName in Enum.GetNames(typeof(GameModeManager.GAME_MODES)))
                     {
-                        return true;
+                        if (gameModeName.Equals(requestedName))
+                            return true;
+                    }
+                    return false;
+                }
+
+                // Load only a non-empty level name present in the game's level list.
+                if ((string.Equals(command, "load", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(command, "loadnoui", StringComparison.OrdinalIgnoreCase))
+                    && tokens.Length == 2)
+                {
+                    return tokens[1].Trim().Length > 0 && levelExists(tokens[1]);
+                }
+
+                // Reveal all/ng or an existing district, optionally narrowed to an existing zone.
+                if (string.Equals(command, "map", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(subcommand, "reveal", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (tokens.Length == 3)
+                    {
+                        if (string.Equals(tokens[2], "all", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(tokens[2], "ng", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
+                        }
+
+                        return mapRevealTargetExists(tokens[2], null);
                     }
 
-                    return mapRevealTargetExists(tokens[2], null);
+                    return tokens.Length == 4 && mapRevealTargetExists(tokens[2], tokens[3]);
                 }
 
-                return tokens.Length == 4 && mapRevealTargetExists(tokens[2], tokens[3]);
-            }
-
-            // Audio levels must be normalized to the inclusive 0–1 range.
-            if (string.Equals(command, "audio", StringComparison.OrdinalIgnoreCase)
-                && (string.Equals(subcommand, "master", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(subcommand, "music", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(subcommand, "sfx", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(subcommand, "voiceover", StringComparison.OrdinalIgnoreCase))
-                && tokens.Length == 3)
-            {
-                return IsWithinRange(tokens[2], 0f, 1f);
-            }
-
-            // Alms amounts must be integers from 0 through 99,999.
-            if (string.Equals(command, "alms", StringComparison.OrdinalIgnoreCase)
-                && (string.Equals(subcommand, "consume", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase))
-                && tokens.Length == 3)
-            {
-                return IsWithinRange(tokens[2], 0, 99999);
-            }
-
-            // Save-game indices are limited to slots 0–10.
-            if (string.Equals(command, "savegame", StringComparison.OrdinalIgnoreCase)
-                && (string.Equals(subcommand, "load", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(subcommand, "save", StringComparison.OrdinalIgnoreCase))
-                && tokens.Length == 3)
-            {
-                return IsWithinRange(tokens[2], 0, 10);
-            }
-
-            // Keep stat values and upgrade levels within their supported game ranges.
-            if (IsStatCommand(command) && tokens.Length == 3)
-            {
-                if (string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(subcommand, "setmax", StringComparison.OrdinalIgnoreCase))
+                // Save-game indices are limited to slots 0–10.
+                if (string.Equals(command, "savegame", StringComparison.OrdinalIgnoreCase)
+                    && (string.Equals(subcommand, "load", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(subcommand, "save", StringComparison.OrdinalIgnoreCase))
+                    && tokens.Length == 3)
                 {
-                    return IsWithinRange(tokens[2], 0f, 99999f);
+                    return IsWithinRange(tokens[2], 0, 10);
                 }
-                if (string.Equals(subcommand, "upgradeto", StringComparison.OrdinalIgnoreCase))
-                    return IsWithinRange(tokens[2], 0, 9999);
+
+                // Keep stat values and upgrade levels within their supported game ranges.
+                if (IsStatCommand(command) && tokens.Length == 3)
+                {
+                    if (string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(subcommand, "setmax", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return IsWithinRange(tokens[2], 0f, 99999f);
+                    }
+                    if (string.Equals(subcommand, "upgradeto", StringComparison.OrdinalIgnoreCase))
+                        return IsWithinRange(tokens[2], 0, 9999);
+                }
+
+                // Relic equipment slots are limited to indices 0–2.
+                if (string.Equals(command, "relic", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 4)
+                        return IsWithinRange(tokens[3], 0, 2);
+                    if (string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
+                        return IsWithinRange(tokens[2], 0, 2);
+                }
+
+                // Bound bead capacity and validate equipment slots against the current slot count.
+                if (string.Equals(command, "bead", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.Equals(subcommand, "setslots", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
+                        return IsWithinRange(tokens[2], 2, 7);
+                    if (string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 4)
+                        return IsWithinRange(tokens[3], 0, getRosaryBeadSlots() - 1);
+                    if (string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
+                        return IsWithinRange(tokens[2], 0, getRosaryBeadSlots() - 1);
+                }
+
+                // Sword and prayer equipment use the single supported slot, index 0.
+                if ((string.Equals(command, "sword", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase))
+                    && string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase)
+                    && tokens.Length == 4)
+                {
+                    return IsWithinRange(tokens[3], 0, 0);
+                }
+
+                if ((string.Equals(command, "sword", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase))
+                    && string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase)
+                    && tokens.Length == 3)
+                {
+                    return IsWithinRange(tokens[2], 0, 0);
+                }
+
+                // Prayer deciphering accepts page values from 1 through 20.
+                if (string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(subcommand, "decipher", StringComparison.OrdinalIgnoreCase)
+                    && tokens.Length == 4)
+                {
+                    return IsWithinRange(tokens[3], 1, 20);
+                }
             }
 
-            // Relic equipment slots are limited to indices 0–2.
-            if (string.Equals(command, "relic", StringComparison.OrdinalIgnoreCase))
+            if (strictValueChecking)
             {
-                if (string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 4)
-                    return IsWithinRange(tokens[3], 0, 2);
-                if (string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
-                    return IsWithinRange(tokens[2], 0, 2);
-            }
+                // Numeric bounds remain active only with strict value checking enabled.
+                if (string.Equals(command, "achievement", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(subcommand, "addprogress", StringComparison.OrdinalIgnoreCase)
+                    && tokens.Length == 4)
+                {
+                    return IsWithinRange(tokens[3], 0f, 100f);
+                }
 
-            // Bound bead capacity and validate equipment slots against the current slot count.
-            if (string.Equals(command, "bead", StringComparison.OrdinalIgnoreCase))
-            {
-                if (string.Equals(subcommand, "setslots", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
-                    return IsWithinRange(tokens[2], 2, 7);
-                if (string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 4)
-                    return IsWithinRange(tokens[3], 0, getRosaryBeadSlots() - 1);
-                if (string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase) && tokens.Length == 3)
-                    return IsWithinRange(tokens[2], 0, getRosaryBeadSlots() - 1);
-            }
+                // Audio levels must be normalized to the inclusive 0–1 range.
+                if (string.Equals(command, "audio", StringComparison.OrdinalIgnoreCase)
+                    && (string.Equals(subcommand, "master", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(subcommand, "music", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(subcommand, "sfx", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(subcommand, "voiceover", StringComparison.OrdinalIgnoreCase))
+                    && tokens.Length == 3)
+                {
+                    return IsWithinRange(tokens[2], 0f, 1f);
+                }
 
-            // Sword and prayer equipment use the single supported slot, index 0.
-            if ((string.Equals(command, "sword", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase))
-                && string.Equals(subcommand, "equip", StringComparison.OrdinalIgnoreCase)
-                && tokens.Length == 4)
-            {
-                return IsWithinRange(tokens[3], 0, 0);
-            }
-
-            if ((string.Equals(command, "sword", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase))
-                && string.Equals(subcommand, "unequip", StringComparison.OrdinalIgnoreCase)
-                && tokens.Length == 3)
-            {
-                return IsWithinRange(tokens[2], 0, 0);
-            }
-
-            // Prayer deciphering accepts page values from 1 through 20.
-            if (string.Equals(command, "prayer", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(subcommand, "decipher", StringComparison.OrdinalIgnoreCase)
-                && tokens.Length == 4)
-            {
-                return IsWithinRange(tokens[3], 1, 20);
+                // Alms amounts must be integers from 0 through 99,999.
+                if (string.Equals(command, "alms", StringComparison.OrdinalIgnoreCase)
+                    && (string.Equals(subcommand, "consume", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(subcommand, "set", StringComparison.OrdinalIgnoreCase))
+                    && tokens.Length == 3)
+                {
+                    return IsWithinRange(tokens[2], 0, 99999);
+                }
             }
 
             return true;

@@ -187,6 +187,12 @@ ConsoleWidget.InitializeCommands
 3. 共享命令、原版命令和扩展命令最终都可以产生游戏状态副作用；优化不能只以 UI 文本是否正确作为完成标准。
 4. `OnRegisterServices` 是扩展命令的生命周期入口；命令注册时机必须早于目标 `ConsoleWidget` 的命令初始化，或明确处理晚注册。
 
+### 原版命令值校验兼容配置
+
+- `VanillaCommandResolverModCompatibleMode` 默认为 `false`；开启后跳过固定的原版值域检查（Boss Rush/游戏模式枚举、关卡与地图目标存在性、存档槽位、属性值、装备槽位及祷文解读范围），让原版或 mod 修改过的处理器决定这些值是否有效。
+- `VanillaCommandResolverStrictValueChecking` 默认为 `true`；关闭后跳过成就进度 `0–100`、音量 `0–1` 和炼金货币 `0–99,999` 的范围检查，但仍检查 achievement ID 是否存在。
+- 两项配置互相独立；命令/子命令路由、参数数量和未列出的校验不受影响。
+
 ### 建议的最小优化顺序
 
 1. 先为解析、精确/前缀匹配、大小写、空格、别名和共享命令建立行为样例；这些行为集中在 `ConsoleWidget`，改动半径最大。
