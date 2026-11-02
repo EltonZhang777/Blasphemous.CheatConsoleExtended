@@ -1,12 +1,12 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using BepInEx;
 using Blasphemous.CheatConsole;
 using Blasphemous.CheatConsoleExtended;
 using Blasphemous.ModdingAPI;
 using Gameplay.UI.Console;
 using Gameplay.UI.Widgets;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 

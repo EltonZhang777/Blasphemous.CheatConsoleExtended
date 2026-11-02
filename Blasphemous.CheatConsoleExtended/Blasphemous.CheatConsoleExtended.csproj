@@ -52,9 +52,11 @@
     </PropertyGroup>
 
     <!-- Export to dev folder -->
+    <!--
     <Copy SourceFiles="@(Resources)" DestinationFolder="$(DevFolder)\%(RecursiveDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(PluginDll)" DestinationFolder="$(DevFolder)\plugins" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataDlls)" DestinationFolder="$(DevFolder)\data" SkipUnchangedFiles="true" />
+    -->
 
     <!-- Export to publish folder -->
     <RemoveDir Directories="$(PublishFolder)" />

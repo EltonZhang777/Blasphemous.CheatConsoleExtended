@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using Blasphemous.CheatConsoleExtended;
+using System.Collections.Generic;
 using UnityEngine.UI;
 
 namespace Gameplay.UI.Widgets
@@ -7,10 +7,10 @@ namespace Gameplay.UI.Widgets
     public sealed class ConsoleWidget
     {
         public static ConsoleWidget Instance;
-        public readonly List<string> ProcessedCommands = new List<string>();
-        public readonly List<string> WrittenMessages = new List<string>();
-        public ConsoleInput input = new ConsoleInput();
-        public ScrollRect scrollRect = new ScrollRect();
+        public readonly List<string> ProcessedCommands = [];
+        public readonly List<string> WrittenMessages = [];
+        public ConsoleInput input = new();
+        public ScrollRect scrollRect = new();
 
         private bool isEnabled;
 
@@ -78,7 +78,7 @@ namespace Blasphemous.ModdingAPI
 {
     public static class ModLog
     {
-        public static readonly List<object> Errors = new List<object>();
+        public static readonly List<object> Errors = [];
 
         public static void Error(object message) => Errors.Add(message);
     }
