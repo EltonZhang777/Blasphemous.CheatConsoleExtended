@@ -844,11 +844,13 @@ internal static class ConsoleWidget_ProcessCommand_Patch
     {
         internal int PreviousCommandDepth;
         internal VanillaConsoleOutputLocalizer.ProcessCommandScope OutputScope;
+        internal ConsoleOutputBatching.Scope OutputBatch;
 
         internal ProcessCommandState(VanillaConsoleOutputLocalizer.ProcessCommandScope outputScope)
         {
             PreviousCommandDepth = 0;
             OutputScope = outputScope;
+            OutputBatch = null;
         }
     }
 
@@ -866,6 +868,7 @@ internal static class ConsoleWidget_ProcessCommand_Patch
 
         try
         {
+            __state.OutputBatch = ConsoleOutputBatching.Begin(message => __instance.Write(message));
             bool runOriginal = StrictCommandRuntime.Process(__instance, rawText, out ConsoleCommand command);
             if (runOriginal)
                 VanillaConsoleOutputLocalizer.SelectCommand(command?.GetType());
@@ -885,6 +888,14 @@ internal static class ConsoleWidget_ProcessCommand_Patch
     {
         CheatConsoleController.EndCommandExecution(__state.PreviousCommandDepth);
         VanillaConsoleOutputLocalizer.EndProcessCommand(__state.OutputScope);
+        try
+        {
+            ConsoleOutputBatching.End(__state.OutputBatch);
+        }
+        catch when (__exception != null)
+        {
+            // Keep the command failure as the exception propagated to callers.
+        }
         return __exception;
     }
 

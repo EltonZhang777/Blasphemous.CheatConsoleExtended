@@ -355,10 +355,14 @@ namespace Blasphemous.CheatConsoleExtended
     [HarmonyPatch(typeof(ConsoleWidget), "Write")]
     internal static class ConsoleWidget_Write_Patch
     {
-        /// <summary>Localizes eligible vanilla output before the console and Unity log receive it.</summary>
-        internal static void Prefix(ref string message)
+        /// <summary>Localizes and batches command output before the console and Unity log receive it.</summary>
+        internal static bool Prefix(ref string message)
         {
+            if (ConsoleOutputBatching.IsFlushing)
+                return true;
+
             message = VanillaConsoleOutputLocalizer.PrepareOutputForWrite(message);
+            return !ConsoleOutputBatching.TryBuffer(message);
         }
 
         /// <summary>Routes console text assignments through the output-coloring handler.</summary>
@@ -376,6 +380,94 @@ namespace Blasphemous.CheatConsoleExtended
                 }
                 yield return instruction;
             }
+        }
+    }
+
+    /// <summary>Combines writes made during one command-processing tree into one console write.</summary>
+    internal static class ConsoleOutputBatching
+    {
+        [ThreadStatic]
+        private static Scope current;
+
+        [ThreadStatic]
+        private static bool flushing;
+
+        internal static bool IsFlushing
+        {
+            get { return flushing; }
+        }
+
+        internal static bool IsBuffering
+        {
+            get { return current != null && !flushing; }
+        }
+
+        internal static Scope Begin(Action<string> write)
+        {
+            if (write == null)
+                throw new ArgumentNullException(nameof(write));
+
+            Scope scope = new(current, write);
+            current = scope;
+            return scope;
+        }
+
+        internal static bool TryBuffer(string message)
+        {
+            if (flushing || current == null)
+                return false;
+
+            current.Messages.Add(message);
+            return true;
+        }
+
+        internal static void End(Scope scope)
+        {
+            if (scope == null)
+                return;
+            if (!ReferenceEquals(scope, current))
+                throw new InvalidOperationException("Console output scopes must end in reverse order.");
+
+            current = scope.Parent;
+            if (scope.Messages.Count == 0)
+                return;
+
+            if (scope.Parent != null)
+            {
+                scope.Parent.Messages.AddRange(scope.Messages);
+                return;
+            }
+
+            string message = scope.Messages.Count == 1
+                ? scope.Messages[0]
+                : string.Join("\n", scope.Messages.ToArray());
+
+            bool previousFlushing = flushing;
+            flushing = true;
+            try
+            {
+                scope.Write(message);
+            }
+            finally
+            {
+                flushing = previousFlushing;
+            }
+        }
+
+        internal sealed class Scope
+        {
+            internal Scope(Scope parent, Action<string> write)
+            {
+                Parent = parent;
+                Write = write;
+                Messages = [];
+            }
+
+            internal Scope Parent { get; }
+
+            internal Action<string> Write { get; }
+
+            internal List<string> Messages { get; }
         }
     }
 
@@ -452,7 +544,8 @@ namespace Blasphemous.CheatConsoleExtended.Patches
         [HarmonyPostfix]
         private static void Postfix(ConsoleWidget __instance)
         {
-            ConsoleFontApplicator.ApplyToLatestOutput(__instance);
+            if (!ConsoleOutputBatching.IsBuffering)
+                ConsoleFontApplicator.ApplyToLatestOutput(__instance);
         }
     }
 
