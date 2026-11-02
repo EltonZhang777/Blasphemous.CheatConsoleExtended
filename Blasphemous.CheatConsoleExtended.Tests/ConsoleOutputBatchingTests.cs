@@ -1,10 +1,10 @@
+using Blasphemous.CheatConsoleExtended;
+using Gameplay.UI.Console;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Serialization;
-using Blasphemous.CheatConsoleExtended;
-using Gameplay.UI.Console;
-using HarmonyLib;
 using Xunit;
 
 namespace Blasphemous.CheatConsoleExtended.Tests;
