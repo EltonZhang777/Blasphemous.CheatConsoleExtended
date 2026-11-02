@@ -1,6 +1,6 @@
-using System;
 using Blasphemous.ModdingAPI;
 using Gameplay.UI.Widgets;
+using System;
 using Xunit;
 
 namespace Blasphemous.CheatConsoleExtended.Tests;

@@ -20,11 +20,11 @@ public sealed class VanillaConsoleOutputLocalizerTests
 
     private static VanillaConsoleOutputLocalizer.Catalog LoadCaptionCatalog()
     {
-        return VanillaConsoleOutputLocalizer.Catalog.Load(new[]
-        {
+        return VanillaConsoleOutputLocalizer.Catalog.Load(
+        [
             "lang: en",
             "vanilla.test.caption: {0} ({1})"
-        });
+        ]);
     }
 
     private static string WriteCommandOutput(string message)
@@ -226,13 +226,13 @@ public sealed class VanillaConsoleOutputLocalizerTests
         const string original = "Available commands:";
         const string key = "vanilla.help.available_commands";
         string currentLanguage = "en";
-        Func<string, string> localize = candidateKey =>
+        string localize(string candidateKey)
         {
             if (currentLanguage == "fr")
                 return candidateKey == key ? "Commandes disponibles:" : "LOC_ERROR";
 
             return currentLanguage == "en" ? catalog.GetEnglish(candidateKey) : "LOC_ERROR";
-        };
+        }
         VanillaConsoleOutputLocalizer.Initialize(catalog, localize);
         try
         {
@@ -241,7 +241,7 @@ public sealed class VanillaConsoleOutputLocalizerTests
             global::Blasphemous.CheatConsoleExtended.ConsoleWidget_Write_Patch.Prefix(ref readyRow);
             history.Add(readyRow);
             history.Add(WriteCommandOutput(original));
-            string[] existingRows = history.ToArray();
+            string[] existingRows = [.. history];
 
             currentLanguage = "fr";
             history.Add(WriteCommandOutput(original));

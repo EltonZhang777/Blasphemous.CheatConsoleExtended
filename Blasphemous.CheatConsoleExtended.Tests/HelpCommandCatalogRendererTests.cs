@@ -9,8 +9,7 @@ public sealed class HelpCommandCatalogRendererTests
     public void RendersSortedVanillaSharedAndModCommands()
     {
         List<string> lines = HelpCommandCatalogRenderer.Render(
-            new[]
-            {
+            [
                 new CommandCatalogEntry("zulu", "ZuluAlias", "alphaAlias"),
                 new CommandCatalogEntry("Bravo"),
                 new CommandCatalogEntry("alpha"),
@@ -18,22 +17,20 @@ public sealed class HelpCommandCatalogRendererTests
                 new CommandCatalogEntry("load"),
                 new CommandCatalogEntry("loadmenu"),
                 new CommandCatalogEntry("duplicate")
-            },
-            new[]
-            {
+            ],
+            [
                 "ZuluShared",
                 "alphaShared",
                 "shared-after-refresh",
                 "duplicate",
                 "remove",
                 "remove-extra"
-            },
-            new[]
-            {
+            ],
+            [
                 new CommandCatalogEntry("ZuluMod"),
                 new CommandCatalogEntry("alphaMod"),
                 new CommandCatalogEntry("duplicate")
-            });
+            ]);
 
         Assert.Equal(new[]
         {
@@ -62,9 +59,9 @@ public sealed class HelpCommandCatalogRendererTests
     [Fact]
     public void RendersFreshSnapshotOfSharedCommandIds()
     {
-        List<string> sharedCommandIds = new List<string> { "old-shared" };
+        List<string> sharedCommandIds = ["old-shared"];
         List<string> beforeRefresh = HelpCommandCatalogRenderer.Render(
-            new CommandCatalogEntry[0], sharedCommandIds, new CommandCatalogEntry[0]);
+            [], sharedCommandIds, []);
 
         Assert.Equal(new[]
         {
@@ -78,7 +75,7 @@ public sealed class HelpCommandCatalogRendererTests
         sharedCommandIds.Clear();
         sharedCommandIds.Add("new-shared");
         List<string> afterRefresh = HelpCommandCatalogRenderer.Render(
-            new CommandCatalogEntry[0], sharedCommandIds, new CommandCatalogEntry[0]);
+            [], sharedCommandIds, []);
         Assert.Equal(new[]
         {
             "All vanilla commands (command aliases separated by | sign):",
@@ -94,9 +91,9 @@ public sealed class HelpCommandCatalogRendererTests
     public void ShowsEmptySectionMessagesWithoutBlankLines()
     {
         List<string> lines = HelpCommandCatalogRenderer.Render(
-            new[] { new CommandCatalogEntry("command") },
-            new string[0],
-            new CommandCatalogEntry[0]);
+            [new CommandCatalogEntry("command")],
+            [],
+            []);
 
         Assert.Equal(new[]
         {
