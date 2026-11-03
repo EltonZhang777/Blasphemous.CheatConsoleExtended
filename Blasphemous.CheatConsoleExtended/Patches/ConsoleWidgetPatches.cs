@@ -613,7 +613,7 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                 var text = console.content.GetChild(i).GetComponent<Text>();
                 if (text != null)
                 {
-                    ApplyOutputLayout(text, font);
+                    ApplyOutputLayout(text, font, i == console.content.childCount - 1);
                 }
             }
         }
@@ -627,18 +627,28 @@ namespace Blasphemous.CheatConsoleExtended.Patches
                 return;
             }
 
-            var text = console.content.GetChild(console.content.childCount - 1).GetComponent<Text>();
+            int latestIndex = console.content.childCount - 1;
+            var text = console.content.GetChild(latestIndex).GetComponent<Text>();
             if (text != null)
             {
+                var previousText = latestIndex > 0
+                    ? console.content.GetChild(latestIndex - 1).GetComponent<Text>()
+                    : null;
+                previousText?.font = font;
                 text.font = font;
                 Canvas.ForceUpdateCanvases();
-                ApplyOutputLayout(text, font);
+                if (previousText != null)
+                {
+                    ApplyOutputLayout(previousText, font, false);
+                }
+
+                ApplyOutputLayout(text, font, true);
                 LayoutRebuilder.ForceRebuildLayoutImmediate(console.content);
             }
         }
 
-        /// <summary>Preserves a rendered output row's layout height after changing its font.</summary>
-        private static void ApplyOutputLayout(Text text, Font font)
+        /// <summary>Sizes an output row for the selected font and optionally reserves trailing space.</summary>
+        private static void ApplyOutputLayout(Text text, Font font, bool reserveTrailingGap)
         {
             var layoutElement = text.GetComponent<LayoutElement>() ?? text.gameObject.AddComponent<LayoutElement>();
             var preferredHeight = text.preferredHeight;
@@ -648,6 +658,12 @@ namespace Blasphemous.CheatConsoleExtended.Patches
             if (preferredHeight > rowHeight)
             {
                 rowHeight = preferredHeight;
+            }
+
+            if (reserveTrailingGap && (text.text.IndexOf('\n') >= 0 || text.text.IndexOf('\r') >= 0))
+            {
+                float trailingGap = lineHeight > 0f ? lineHeight : rowHeight / lineCount;
+                rowHeight += trailingGap;
             }
 
             if (rowHeight > 0f)

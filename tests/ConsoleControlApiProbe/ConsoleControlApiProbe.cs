@@ -18,6 +18,10 @@ namespace Blasphemous.CheatConsoleExtended.Tests;
 internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
 {
     internal const string SentinelOutputPrefix = "[Console API Probe] Sentinel output ";
+    internal const string BatchedLayoutOutput =
+        "[Console API Probe] Layout output first.\n"
+        + "[Console API Probe] Layout output middle.\n"
+        + "[Console API Probe] Layout output last.";
 
     internal static int SentinelExecutionCount;
     private static ConsoleControlApiProbe _instance;
@@ -171,6 +175,10 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
                 CheatConsoleController.SetApiAccessEnabled(true);
             }
 
+            int initialLayoutOutputCount = CountOutputItems(console);
+            Check(CheatConsoleController.ExecuteCommand("consoleapiprobe layout"), "multiline layout command admitted");
+            Check(CountOutputItems(console) == initialLayoutOutputCount + 1, "batched multiline output uses one rendered item");
+            Check(ContainsOutput(console, BatchedLayoutOutput), "batched multiline output preserves generated text");
             CheatConsoleController.SetConsoleOpen(true);
         }))
             yield break;
@@ -181,6 +189,7 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
         {
             Check(CheatConsoleController.IsConsoleWidgetOpen, "API reopens the widget for inspection");
             Check(OutputRowsUseCurrentLayout(console), "closed output rows are laid out after reopening");
+            Check(LastOutputUsesInputBoundary(console), "last multiline output fits above the input field with a stable gap");
         }))
         {
             CheatConsoleController.SetUserEnabled(true);
@@ -211,6 +220,16 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
             return false;
 
         Canvas.ForceUpdateCanvases();
+        Text latestOutput = null;
+        for (int index = console.content.childCount - 1; index >= 0; index--)
+        {
+            latestOutput = console.content.GetChild(index).GetComponent<Text>();
+            if (latestOutput != null)
+            {
+                break;
+            }
+        }
+
         for (int index = 0; index < console.content.childCount; index++)
         {
             Text output = console.content.GetChild(index).GetComponent<Text>();
@@ -221,15 +240,155 @@ internal sealed class ConsoleControlApiProbe : BaseUnityPlugin
             if (layout == null)
                 return false;
 
-            float lineHeight = output.font == null ? 0f : output.font.lineHeight / Mathf.Max(1f, output.pixelsPerUnit);
-            float expectedHeight = lineHeight > 0f
-                ? Mathf.Max(output.preferredHeight, Mathf.Max(1, output.cachedTextGeneratorForLayout.lineCount) * lineHeight)
-                : output.preferredHeight;
-            if (Mathf.Abs(layout.preferredHeight - expectedHeight) > 1f)
+            float requiredTextHeight = GetTextGeneratorRequiredHeight(output);
+            if (requiredTextHeight <= 0f)
+            {
                 return false;
+            }
+
+            int lineCount = Mathf.Max(1, output.cachedTextGeneratorForLayout.lineCount);
+            float lineHeight = output.font.lineHeight / Mathf.Max(1f, output.pixelsPerUnit);
+            float expectedHeight = lineHeight > 0f
+                ? Mathf.Max(requiredTextHeight, lineCount * lineHeight)
+                : requiredTextHeight;
+            bool hasLineBreak = output.text.IndexOf('\n') >= 0 || output.text.IndexOf('\r') >= 0;
+            if (output == latestOutput && hasLineBreak)
+            {
+                expectedHeight += lineHeight > 0f ? lineHeight : expectedHeight / lineCount;
+            }
+
+            if (Mathf.Abs(layout.preferredHeight - expectedHeight) > 1f
+                || Mathf.Abs(output.rectTransform.rect.height - expectedHeight) > 1f)
+            {
+                return false;
+            }
         }
 
         return true;
+    }
+
+    private static float GetTextGeneratorRequiredHeight(Text output)
+    {
+        if (output == null || output.font == null || output.pixelsPerUnit <= 0f)
+        {
+            return 0f;
+        }
+
+        Vector2 extents = new Vector2(output.GetPixelAdjustedRect().size.x, 0f);
+        TextGenerationSettings settings = output.GetGenerationSettings(extents);
+        return output.cachedTextGeneratorForLayout.GetPreferredHeight(output.text, settings) / output.pixelsPerUnit;
+    }
+
+    private static bool LastOutputUsesInputBoundary(ConsoleWidget console)
+    {
+        if (console.content == null || console.input == null || console.scrollRect == null || console.content.childCount == 0)
+        {
+            return false;
+        }
+
+        Text output = null;
+        for (int index = console.content.childCount - 1; index >= 0; index--)
+        {
+            output = console.content.GetChild(index).GetComponent<Text>();
+            if (output != null)
+            {
+                break;
+            }
+        }
+
+        RectTransform inputRect = console.input.GetComponent<RectTransform>();
+        if (output == null || output.text != BatchedLayoutOutput || inputRect == null)
+        {
+            return false;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        float requiredTextHeight = GetTextGeneratorRequiredHeight(output);
+        if (requiredTextHeight <= 0f)
+        {
+            return false;
+        }
+
+        if (output.cachedTextGeneratorForLayout.lineCount < 2 || output.pixelsPerUnit <= 0f)
+        {
+            return false;
+        }
+
+        LayoutElement layout = output.GetComponent<LayoutElement>();
+        if (layout == null)
+        {
+            return false;
+        }
+
+        float lineHeight = output.font.lineHeight / output.pixelsPerUnit;
+        float minimumGap = lineHeight > 0f ? lineHeight * 0.75f : 1f;
+        float minimumGapWorld = lineHeight > 0f
+            ? output.rectTransform.TransformVector(Vector3.up * lineHeight).magnitude * 0.75f
+            : 1f;
+        float trailingGap = layout.preferredHeight - requiredTextHeight;
+        if (trailingGap + 1f < minimumGap
+            || output.rectTransform.rect.height + 1f < requiredTextHeight + minimumGap)
+        {
+            return false;
+        }
+
+        Vector3[] outputCorners = new Vector3[4];
+        Vector3[] inputCorners = new Vector3[4];
+        Vector3[] viewportCorners = new Vector3[4];
+        RectTransform viewport = console.scrollRect.viewport;
+        if (viewport == null)
+        {
+            viewport = console.scrollRect.transform as RectTransform;
+        }
+
+        if (viewport == null)
+        {
+            return false;
+        }
+
+        float viewportBottom;
+        float outputBottom;
+        float gap;
+        float previousScrollPosition = console.scrollRect.verticalNormalizedPosition;
+        try
+        {
+            console.scrollRect.verticalNormalizedPosition = 0f;
+            Canvas.ForceUpdateCanvases();
+            output.rectTransform.GetWorldCorners(outputCorners);
+            inputRect.GetWorldCorners(inputCorners);
+            viewport.GetWorldCorners(viewportCorners);
+
+            viewportBottom = viewportCorners[0].y;
+            outputBottom = outputCorners[0].y;
+            float trailingGapWorld = output.rectTransform.TransformVector(Vector3.up * trailingGap).y;
+            float textBottom = outputBottom + trailingGapWorld;
+            gap = textBottom - inputCorners[1].y;
+        }
+        finally
+        {
+            console.scrollRect.verticalNormalizedPosition = previousScrollPosition;
+        }
+
+        return outputBottom + 1f >= viewportBottom && gap + 1f >= minimumGapWorld;
+    }
+
+    private static int CountOutputItems(ConsoleWidget console)
+    {
+        if (console.content == null)
+        {
+            return -1;
+        }
+
+        int count = 0;
+        for (int index = 0; index < console.content.childCount; index++)
+        {
+            if (console.content.GetChild(index).GetComponent<Text>() != null)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static bool ContainsOutput(ConsoleWidget console, string expected)
@@ -292,7 +451,8 @@ internal sealed class ConsoleApiReentryProbeCommand : ModCommand
         return new Dictionary<string, Action<string[]>>
         {
             ["reentry"] = RunReentryCheck,
-            ["sentinel"] = RunSentinel
+            ["sentinel"] = RunSentinel,
+            ["layout"] = RunLayout
         };
     }
 
@@ -300,6 +460,19 @@ internal sealed class ConsoleApiReentryProbeCommand : ModCommand
     {
         ConsoleControlApiProbe.SentinelExecutionCount++;
         Write(ConsoleControlApiProbe.SentinelOutputPrefix + ConsoleControlApiProbe.SentinelExecutionCount + ".");
+    }
+
+    private void RunLayout(string[] parameters)
+    {
+        if (parameters.Length != 0)
+        {
+            Write("consoleapiprobe layout takes no parameters.");
+            return;
+        }
+
+        Write("[Console API Probe] Layout output first.");
+        Write("[Console API Probe] Layout output middle.");
+        Write("[Console API Probe] Layout output last.");
     }
 
     private void RunReentryCheck(string[] parameters)
