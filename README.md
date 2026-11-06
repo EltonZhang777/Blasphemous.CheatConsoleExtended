@@ -1,6 +1,6 @@
 # Cheat Console Extended
 
-Cheat Console Extended is a mod for Blasphemous 1 that extends the in-game Cheat Console with stricter command resolution, command discovery, configurable console appearance, and programmatic console access for other mods.
+Cheat Console Extended requires the Cheat Console mod and extends Blasphemous 1's vanilla console with strict command matching, command discovery, configurable appearance, and programmatic access for other mods.
 
 ## Getting the code
 
