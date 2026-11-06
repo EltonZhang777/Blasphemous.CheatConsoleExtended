@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Blasphemous.CheatConsoleExtended.Tests;
 
+[Collection(nameof(ConsoleGlobalStateCollection))]
 public sealed class ConsoleAccessPolicyTests
 {
     [Fact]

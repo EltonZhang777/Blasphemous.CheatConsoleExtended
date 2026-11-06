@@ -6,6 +6,7 @@ using Xunit;
 
 namespace Blasphemous.CheatConsoleExtended.Tests;
 
+[Collection(nameof(ConsoleGlobalStateCollection))]
 public sealed class VanillaConsoleOutputLocalizerTests
 {
     private static VanillaConsoleOutputLocalizer.Catalog LoadCatalog()
@@ -257,6 +258,39 @@ public sealed class VanillaConsoleOutputLocalizerTests
         {
             VanillaConsoleOutputLocalizer.Initialize(VanillaConsoleOutputLocalizer.Catalog.Empty, null);
         }
+    }
+
+    [Fact]
+    public void BatchedVanillaLinesKeepTheirIndividualLocalizedText()
+    {
+        VanillaConsoleOutputLocalizer.Catalog catalog = LoadCatalog();
+        VanillaConsoleOutputLocalizer.Initialize(
+            catalog,
+            key => key switch
+            {
+                "vanilla.help.available_commands" => "Commandes disponibles:",
+                "vanilla.restart.reloading_current_level" => "Rechargement du niveau actuel...",
+                _ => catalog.GetEnglish(key)
+            });
+
+        using ConsoleProcessCommandHarness harness = new();
+        object state = harness.StartCommand();
+        try
+        {
+            VanillaConsoleOutputLocalizer.SelectCommand(typeof(Help));
+            harness.Write("Available commands:");
+            harness.Write("Reloading current level...");
+            harness.FinishCommandIfNeeded(ref state);
+        }
+        finally
+        {
+            harness.FinishCommandIfNeeded(ref state);
+            VanillaConsoleOutputLocalizer.Initialize(VanillaConsoleOutputLocalizer.Catalog.Empty, null);
+        }
+
+        Assert.Equal(
+            new[] { "Commandes disponibles:\nRechargement du niveau actuel..." },
+            harness.Writes);
     }
 
     private sealed class ExtensionAdapter
