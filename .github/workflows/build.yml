@@ -92,42 +92,14 @@ jobs:
           printf 'MOD_TITLE=%s\n' "$MOD_TITLE"
           printf 'MOD_NAME=%s\n' "$MOD_NAME"
           printf 'PACKAGE_FILE=%s\n' "$PACKAGE_FILE"
-          printf 'PACKAGE_ASSET_NAME=%s\n' "$(basename "$PACKAGE_FILE")"
           printf 'ZIP_FILE=%s\n' "$ZIP_FILE"
         } >> "$GITHUB_ENV"
 
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/') && steps.tag_target.outputs.on_main == 'true'
-      id: create_release
-      uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: ${{ env.MOD_TITLE }} ${{ env.PACKAGE_VERSION }}
-        draft: true
-
-    - name: Upload Release ZIP
-      if: startsWith(github.ref, 'refs/tags/') && steps.tag_target.outputs.on_main == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.ZIP_FILE }}
-        asset_name: ${{ env.MOD_NAME }}.zip
-        asset_content_type: application/zip
-
-    - name: Upload Release Package
-      if: startsWith(github.ref, 'refs/tags/') && steps.tag_target.outputs.on_main == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.PACKAGE_FILE }}
-        asset_name: ${{ env.PACKAGE_ASSET_NAME }}
-        asset_content_type: application/octet-stream
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release create "$GITHUB_REF_NAME" "$ZIP_FILE#${MOD_NAME}.zip" --title "$MOD_TITLE $PACKAGE_VERSION" --draft --verify-tag
 
     - name: Publish NuGet Package
       if: startsWith(github.ref, 'refs/tags/') && steps.tag_target.outputs.on_main == 'true'
