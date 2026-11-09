@@ -9,7 +9,7 @@
     <Authors>NewbieElton</Authors>
     <Company>NewbieElton</Company>
     <Description>Mod for Blasphemous 1 that adds extended cheat console functionality</Description>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
 
     <TargetName>CheatConsoleExtended</TargetName>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
