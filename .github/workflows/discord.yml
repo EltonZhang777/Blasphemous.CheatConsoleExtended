@@ -8,12 +8,7 @@ jobs:
     if: ${{ !github.event.release.draft && !github.event.release.prerelease }}
     steps:
       - name: Post Webhook
-        uses: sarisia/actions-status-discord@v1.16.0
+        uses: step-security/github-releases-to-discord@v1.20.0
         with:
-          webhook: ${{ secrets.WEBHOOK_URL }}
-          title: ${{ github.event.release.name }}
-          description: ${{ github.event.release.body }}
-          url: ${{ github.event.release.html_url }}
-          nodetail: true
-          nofail: false
-          notimestamp: false
+          webhook_url: ${{ secrets.WEBHOOK_URL }}
+          footer_timestamp: true
