@@ -1,0 +1,14 @@
+on:
+  release:
+    types: [published]
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.release.draft && !github.event.release.prerelease }}
+    steps:
+      - name: Post Webhook
+        uses: step-security/github-releases-to-discord@v1.20.0
+        with:
+          webhook_url: ${{ secrets.WEBHOOK_URL }}
+          footer_timestamp: true

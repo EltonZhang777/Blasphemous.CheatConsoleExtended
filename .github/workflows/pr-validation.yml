@@ -1,0 +1,48 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  xunit:
+    name: xUnit tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test both target frameworks
+        run: dotnet test Blasphemous.CheatConsoleExtended.Tests/Blasphemous.CheatConsoleExtended.Tests.csproj --configuration Release
+
+  formatting:
+    name: Formatting checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Verify formatting
+        shell: pwsh
+        run: |
+          $projects = @(
+            @{ Path = "Blasphemous.CheatConsoleExtended/Blasphemous.CheatConsoleExtended.csproj"; Directory = "Blasphemous.CheatConsoleExtended" },
+            @{ Path = "Blasphemous.CheatConsoleExtended.Tests/Blasphemous.CheatConsoleExtended.Tests.csproj"; Directory = "Blasphemous.CheatConsoleExtended.Tests" },
+            @{ Path = "tests/ConsoleControlApiProbe/ConsoleControlApiProbe.csproj"; Directory = "tests/ConsoleControlApiProbe" }
+          )
+
+          $failed = $false
+          foreach ($project in $projects) {
+            dotnet format whitespace $project.Path --verify-no-changes --exclude "$($project.Directory)/bin" "$($project.Directory)/obj"
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+
+            dotnet format style $project.Path --verify-no-changes --severity warn --exclude "$($project.Directory)/bin" "$($project.Directory)/obj"
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+
+          if ($failed) { exit 1 }

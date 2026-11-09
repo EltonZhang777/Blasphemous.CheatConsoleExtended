@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="Blasphemous.CheatConsoleExtended/Blasphemous.CheatConsoleExtended.csproj" />
+  <Project Path="Blasphemous.CheatConsoleExtended.Tests/Blasphemous.CheatConsoleExtended.Tests.csproj" />
+  <Project Path="tests/ConsoleControlApiProbe/ConsoleControlApiProbe.csproj" />
 </Solution>
