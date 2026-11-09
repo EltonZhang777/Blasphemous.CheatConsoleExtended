@@ -1,19 +1,27 @@
 # Cheat Console Extended
 
-Extends Blasphemous 1's cheat console with strict command matching, command discovery, configurable appearance, and programmatic access for other mods.
+Extends Blasphemous 1's cheat console with configurable appearance, safer command validation, command suggestion, and programmatic access for other mods.
 
 ---
 
 ## Features
 
+- Customizable console text color
+  - Separate configurable colors for top-level command, subcommand, parameter, and output roles.
+- Adds custom font support for console text
+  - `consolefont list` lists installed system font names, `consolefont set <font_name>` selects one, and `consolefont reset` restores the default console font.
+
+[<img src="docs\readme\custom_font.png"/>]()
+
 - Safer command matching and validation
   - Removes vanilla fuzzy match to prevent mis-triggering high-risk commands like `invtest`. Top-level command and subcommand names use strict, case-insensitive exact matching. A prefix is not enough. 
 - Adds close-name suggestions that shows up when mistyping a command.
+
+[<img src="docs\readme\command_color.png"/>]()
+
 - Rewrites `help` command to display a separated and clean catalog of vanilla, shared, and mod commands.
-- Adds custom font support for console text
-  - `consolefont list` lists installed system font names, `consolefont set <font family name>` selects one, and `consolefont reset` restores the default console font.
-- Customizable console text color
-  - Separate configurable colors for top-level command, subcommand, parameter, and output roles.
+
+[<img src="docs\readme\help_command_rewrite.png"/>]()
 
 ## Configuration and mod author API
 
@@ -52,4 +60,6 @@ dotnet test Blasphemous.CheatConsoleExtended.Tests/Blasphemous.CheatConsoleExten
 
 ## Contributing
 
-Report bugs and request features in [GitHub Issues](https://github.com/EltonZhang777/Blasphemous.CheatConsoleExtended/issues). This project is licensed under the [MIT License](LICENSE).
+Report bugs and request features in [GitHub Issues](https://github.com/EltonZhang777/Blasphemous.CheatConsoleExtended/issues). 
+
+This project is licensed under the [MIT License](LICENSE).
