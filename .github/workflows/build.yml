@@ -54,11 +54,13 @@ jobs:
       env:
         IS_MAIN_TAG: ${{ steps.tag_target.outputs.on_main }}
       run: |
+        PROJECT_FILE="Blasphemous.CheatConsoleExtended/Blasphemous.CheatConsoleExtended.csproj"
+        SOLUTION_DIR="$GITHUB_WORKSPACE/"
         dotnet restore
         if [[ "$IS_MAIN_TAG" == "true" ]]; then
-          dotnet build --configuration Release --no-restore -p:Version="$PACKAGE_VERSION"
+          dotnet build "$PROJECT_FILE" --configuration Release --no-restore -p:Version="$PACKAGE_VERSION" -p:SolutionDir="$SOLUTION_DIR"
         else
-          dotnet build --configuration Release --no-restore -p:GeneratePackageOnBuild=false
+          dotnet build "$PROJECT_FILE" --configuration Release --no-restore -p:GeneratePackageOnBuild=false -p:SolutionDir="$SOLUTION_DIR"
         fi
 
     - name: Prepare Release Assets
